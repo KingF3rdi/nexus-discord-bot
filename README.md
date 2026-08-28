@@ -20,6 +20,32 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 - **Vouches** — Bewertung mit Sternen, Produkt, Menge, Preis; Panel zum Nachschlagen von Käufer-/Verkäufer-Statistik.
 - **Services** — z. B. Bau-Service mit Limit (`10/10 Tickets – Limit erreicht`).
 
+## Bot-Host (Git)
+
+Der Host soll den Code **per Git klonen und bei jedem Start/Update ziehen** — nicht als ZIP hochladen.
+
+1. Oben in Cursor auf **Create repo** klicken und das GitHub-Repository anlegen (öffentlich oder privat).
+2. Im Bot-Host-Panel das GitHub-Repo eintragen:
+
+| Feld | Wert |
+| --- | --- |
+| Repository | `https://github.com/<dein-user>/<dein-repo>.git` |
+| Branch | `main` |
+| Install | `npm install` |
+| Start | `npm start` |
+| Auto-Pull | an (Host zieht bei Restart den neuesten `main`-Stand) |
+
+3. Umgebungsvariable im Host setzen (nicht in Git speichern):
+
+```
+DISCORD_TOKEN=dein_bot_token
+DATA_DIR=./data
+```
+
+Bei einem **privaten** Repo braucht der Host einen GitHub [Personal Access Token](https://github.com/settings/tokens) (Recht `repo`) oder einen Deploy Key. Öffentliche Repos kann der Host ohne Token klonen.
+
+Nach dem ersten Start in Discord `/setup setzen` ausführen.
+
 ## Schnellstart (Discord)
 
 1. Anwendung auf [Discord Developer Portal](https://discord.com/developers/applications) anlegen.

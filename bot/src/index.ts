@@ -7,6 +7,7 @@ import { commands } from "./commands.js";
 import { handleButton, handleChatCommand, handleModal, handleSelect, handleUserSelect, tickGiveaways } from "./handlers.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config();
 dotenv.config({ path: path.resolve(here, "../../.env") });
 dotenv.config({ path: path.resolve(here, "../.env") });
 
