@@ -1,0 +1,14 @@
+{
+  "name": "nexus-discord-bot",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Discord-Bot für Tickets, Buy-Panels, Giveaways, Vouches und /pay-Zahlungsanfragen",
+  "scripts": {
+    "dev": "npm --prefix dashboard run dev",
+    "build": "npm --prefix dashboard run build",
+    "preview": "npm --prefix dashboard run preview",
+    "bot": "npm --prefix bot run start",
+    "bot:dev": "npm --prefix bot run dev",
+    "test": "npm --prefix bot test"
+  }
+}

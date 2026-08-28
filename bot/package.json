@@ -1,0 +1,23 @@
+{
+  "name": "nexus-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Discord ticket, shop, giveaway and vouch bot",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "tsx --test src/util.test.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "discord.js": "^14.27.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.2"
+  }
+}
