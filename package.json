@@ -3,18 +3,20 @@
   "private": true,
   "version": "1.0.0",
   "description": "Discord-Bot für Tickets, Buy-Panels, Giveaways, Vouches und /pay-Zahlungsanfragen",
+  "main": "index.js",
+  "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "workspaces": [
     "bot"
   ],
   "scripts": {
-    "start": "npm --prefix bot run start",
-    "bot": "npm --prefix bot run start",
+    "start": "node index.js",
+    "bot": "node index.js",
     "bot:dev": "npm --prefix bot run dev",
     "dev": "npm --prefix dashboard run dev",
-    "build": "npm --prefix dashboard run build",
+    "build": "npm --prefix bot run build",
     "preview": "npm --prefix dashboard run preview",
     "test": "npm --prefix bot test"
   }

@@ -24,16 +24,19 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 
 Der Host soll den Code **per Git klonen und bei jedem Start/Update ziehen** — nicht als ZIP hochladen.
 
-1. Oben in Cursor auf **Create repo** klicken und das GitHub-Repository anlegen (öffentlich oder privat).
-2. Im Bot-Host-Panel das GitHub-Repo eintragen:
+1. Das GitHub-Repo ist: https://github.com/KingF3rdi/nexus-discord-bot
+2. Im Bot-Host-Panel das Repo eintragen:
 
 | Feld | Wert |
 | --- | --- |
-| Repository | `https://github.com/<dein-user>/<dein-repo>.git` |
+| Repository | `https://github.com/KingF3rdi/nexus-discord-bot.git` |
 | Branch | `main` |
+| Startup-Datei | `index.js` |
 | Install | `npm install` |
-| Start | `npm start` |
-| Auto-Pull | an (Host zieht bei Restart den neuesten `main`-Stand) |
+| Start | `node index.js` |
+| Auto-Pull | an |
+
+Der Host muss **Node 22+** (besser 24) nutzen. `DISCORD_TOKEN` als Umgebungsvariable im Panel setzen — nicht in Git.
 
 3. Umgebungsvariable im Host setzen (nicht in Git speichern):
 

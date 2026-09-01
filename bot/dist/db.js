@@ -1,14 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-
 const dataDir = path.resolve(process.env.DATA_DIR ?? path.join(process.cwd(), "data"));
 fs.mkdirSync(dataDir, { recursive: true });
-
 export const db = new DatabaseSync(path.join(dataDir, "nexus.db"));
 db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
-
 db.exec(`
 CREATE TABLE IF NOT EXISTS guilds (
   id TEXT PRIMARY KEY,
@@ -126,79 +123,57 @@ CREATE TABLE IF NOT EXISTS panels (
   extra TEXT
 );
 `);
-
-export type GuildConfig = {
-  id: string;
-  community_name: string;
-  footer: string;
-  ticket_category_id: string | null;
-  staff_role_id: string | null;
-  log_channel_id: string | null;
-  pay_format: string;
-  default_pay_recipient: string | null;
-  one_ticket_limit: number;
-};
-
-export function requireGuildId(id: string | null | undefined): string {
-  if (!id) throw new Error("Dieser Bot funktioniert nur auf Servern.");
-  return id;
+export function requireGuildId(id) {
+    if (!id)
+        throw new Error("Dieser Bot funktioniert nur auf Servern.");
+    return id;
 }
-
-export function getGuild(id: string | null | undefined): GuildConfig {
-  const guildId = requireGuildId(id);
-  const existing = db.prepare("SELECT * FROM guilds WHERE id = ?").get(guildId) as GuildConfig | undefined;
-  if (existing) return existing;
-  db.prepare("INSERT INTO guilds (id) VALUES (?)").run(guildId);
-  return db.prepare("SELECT * FROM guilds WHERE id = ?").get(guildId) as GuildConfig;
+export function getGuild(id) {
+    const guildId = requireGuildId(id);
+    const existing = db.prepare("SELECT * FROM guilds WHERE id = ?").get(guildId);
+    if (existing)
+        return existing;
+    db.prepare("INSERT INTO guilds (id) VALUES (?)").run(guildId);
+    return db.prepare("SELECT * FROM guilds WHERE id = ?").get(guildId);
 }
-
-export function updateGuild(id: string | null | undefined, patch: Partial<GuildConfig>) {
-  const guildId = requireGuildId(id);
-  getGuild(guildId);
-  const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
-  if (!entries.length) return getGuild(guildId);
-  const sql = `UPDATE guilds SET ${entries.map(([k]) => `${k} = ?`).join(", ")} WHERE id = ?`;
-  db.prepare(sql).run(...entries.map(([, v]) => v), guildId);
-  return getGuild(guildId);
+export function updateGuild(id, patch) {
+    const guildId = requireGuildId(id);
+    getGuild(guildId);
+    const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
+    if (!entries.length)
+        return getGuild(guildId);
+    const sql = `UPDATE guilds SET ${entries.map(([k]) => `${k} = ?`).join(", ")} WHERE id = ?`;
+    db.prepare(sql).run(...entries.map(([, v]) => v), guildId);
+    return getGuild(guildId);
 }
-
-export function ensureDefaultCategories(guildId: string | null | undefined) {
-  const id = requireGuildId(guildId);
-  const count = db.prepare("SELECT COUNT(*) AS c FROM ticket_categories WHERE guild_id = ?").get(id) as { c: number };
-  if (count.c > 0) return;
-  const defaults = [
-    ["Website-Support", "🔵", "Hilfe rund um Website, Login oder technische Probleme.", "support"],
-    ["Allgemeiner Support", "⚪", "allgemeine Fragen und Anliegen.", "support"],
-    ["Clan-Fight", "⚔️", "Anfrage für einen Clan-Fight.", "support"],
-    ["Allianz-Anfrage", "🤝", "Anfrage für eine Allianz.", "support"],
-    ["Giveaway", "🎉", "Anliegen rund um Gewinne oder Gewinnspiele.", "support"],
-    ["Verifizieren", "✅", "verknüpft deinen Discord-Account mit deinem Minecraft-Account per DM.", "verify"],
-  ] as const;
-  const insert = db.prepare(
-    "INSERT INTO ticket_categories (guild_id, name, emoji, description, type, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
-  );
-  defaults.forEach((row, i) => insert.run(id, ...row, i));
+export function ensureDefaultCategories(guildId) {
+    const id = requireGuildId(guildId);
+    const count = db.prepare("SELECT COUNT(*) AS c FROM ticket_categories WHERE guild_id = ?").get(id);
+    if (count.c > 0)
+        return;
+    const defaults = [
+        ["Website-Support", "🔵", "Hilfe rund um Website, Login oder technische Probleme.", "support"],
+        ["Allgemeiner Support", "⚪", "allgemeine Fragen und Anliegen.", "support"],
+        ["Clan-Fight", "⚔️", "Anfrage für einen Clan-Fight.", "support"],
+        ["Allianz-Anfrage", "🤝", "Anfrage für eine Allianz.", "support"],
+        ["Giveaway", "🎉", "Anliegen rund um Gewinne oder Gewinnspiele.", "support"],
+        ["Verifizieren", "✅", "verknüpft deinen Discord-Account mit deinem Minecraft-Account per DM.", "verify"],
+    ];
+    const insert = db.prepare("INSERT INTO ticket_categories (guild_id, name, emoji, description, type, sort_order) VALUES (?, ?, ?, ?, ?, ?)");
+    defaults.forEach((row, i) => insert.run(id, ...row, i));
 }
-
-export function countOpenTickets(guildId: string, userId: string, type?: string) {
-  if (type) {
-    return (
-      db
-        .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open' AND type = ?")
-        .get(guildId, userId, type) as { c: number }
-    ).c;
-  }
-  return (
-    db
-      .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'")
-      .get(guildId, userId) as { c: number }
-  ).c;
+export function countOpenTickets(guildId, userId, type) {
+    if (type) {
+        return db
+            .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open' AND type = ?")
+            .get(guildId, userId, type).c;
+    }
+    return db
+        .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND user_id = ? AND status = 'open'")
+        .get(guildId, userId).c;
 }
-
-export function countOpenByService(guildId: string, serviceId: number) {
-  return (
-    db
-      .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND service_id = ? AND status = 'open'")
-      .get(guildId, serviceId) as { c: number }
-  ).c;
+export function countOpenByService(guildId, serviceId) {
+    return db
+        .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND service_id = ? AND status = 'open'")
+        .get(guildId, serviceId).c;
 }

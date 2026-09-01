@@ -5,22 +5,20 @@
   "type": "module",
   "description": "Discord ticket, shop, giveaway and vouch bot",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
-    "test": "tsx --test src/util.test.ts"
+    "start": "node --experimental-sqlite dist/index.js",
+    "dev": "node --watch --experimental-sqlite --experimental-strip-types src/index.ts",
+    "test": "node --test dist/util.test.js",
+    "build": "tsc --pretty false"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
     "discord.js": "^14.27.0",
-    "dotenv": "^17.4.2",
-    "tsx": "^4.23.12"
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^26.4.0",
+    "@types/node": "^24.3.0",
     "typescript": "^5.9.2"
   }
 }
