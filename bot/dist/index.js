@@ -6,10 +6,37 @@ import { client } from "./client.js";
 import { commands } from "./commands.js";
 import { handleButton, handleChatCommand, handleModal, handleSelect, handleUserSelect, tickGiveaways } from "./handlers.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config();
-dotenv.config({ path: path.resolve(here, "../../.env") });
-dotenv.config({ path: path.resolve(here, "../.env") });
+dotenv.config({ quiet: true });
+dotenv.config({ path: path.resolve(here, "../../.env"), quiet: true });
+dotenv.config({ path: path.resolve(here, "../.env"), quiet: true });
 const token = process.env.DISCORD_TOKEN;
+function isDisallowedIntents(err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return message.includes("disallowed intents") || message.includes("Used disallowed intents");
+}
+function printIntentsHelp() {
+    console.error(`
+┌─────────────────────────────────────────────────────────────┐
+│  Discord: Used disallowed intents (Code 4014)               │
+│                                                             │
+│  Developer Portal → https://discord.com/developers          │
+│  Anwendung wählen → Bot → Privileged Gateway Intents:       │
+│    Presence Intent          AUS                             │
+│    Server Members Intent    AUS                             │
+│    Message Content Intent   AUS                             │
+│  Speichern, dann den Host neu starten.                      │
+│  Dieser Build sendet nur den Intent Guilds.                 │
+└─────────────────────────────────────────────────────────────┘
+`);
+}
+process.on("uncaughtException", (err) => {
+    if (isDisallowedIntents(err)) {
+        printIntentsHelp();
+        process.exit(1);
+    }
+    console.error(err);
+    process.exit(1);
+});
 if (!token) {
     console.error(`
 ┌─────────────────────────────────────────────────────────────┐
@@ -27,7 +54,7 @@ if (!token) {
     process.exit(1);
 }
 client.once(Events.ClientReady, async (ready) => {
-    console.log(`Eingeloggt als ${ready.user.tag}`);
+    console.log(`[Nexus] Online als ${ready.user.tag} · Intents ${client.options.intents?.bitfield ?? 1}`);
     try {
         await ready.application.commands.set(commands);
         console.log(`${commands.length} Slash-Befehle registriert.`);
@@ -73,22 +100,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
+console.log("[Nexus] 1.0.2 start · Gateway-Intents: Guilds only");
 client.login(token).catch((err) => {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("disallowed intents") || message.includes("Used disallowed intents")) {
-        console.error(`
-┌─────────────────────────────────────────────────────────────┐
-│  Discord hat den Start blockiert: disallowed intents        │
-│                                                             │
-│  Im Developer Portal → Bot → Privileged Gateway Intents     │
-│  entweder ALLES AUS lassen (empfohlen, aktueller Code)      │
-│  oder nur einschalten, was wirklich nötig ist.              │
-│  Danach den Bot im Host neu starten.                        │
-└─────────────────────────────────────────────────────────────┘
-`);
-    }
-    else {
+    if (isDisallowedIntents(err))
+        printIntentsHelp();
+    else
         console.error(err);
-    }
     process.exit(1);
 });
