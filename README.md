@@ -9,7 +9,7 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 - **Tickets** — Panel mit Dropdown (Support, Clan-Fight, …). Ein offenes Support-Ticket pro Person. Ist **kein Preis** gesetzt, legt das Team ihn mit **Preis festlegen** oder `/ticket preis` fest — danach erscheint `/pay y3zz <betrag>`.
 - **Buy-Panels** — Produkt mit Preis, Verkäufer, Bild und grünem Kauf-Button. Klick öffnet ein privates Ticket, rechnet `Menge × Preis` und postet z. B. `/pay y3zz 18000000`. Nach dem Schließen bekommt der Käufer eine **DM mit Sternen**; die Bewertung wird als Vouch gepostet (Kanal von `/vouch-panel` oder `/setup setzen vouch_kanal`).
 - **Mehrere Panels** — `/ticket-panel` und `/buy-panel` so oft senden, wie du willst, in beliebige Kanäle.
-- **Texte senden** — `/msg` (Kanal oder DM), `/sagen` und `/embed` (Farbe, Bild, Footer).
+- **Texte senden** — `/msg`, `/sagen` und `/embed` öffnen ein **Textfenster**: **fett**, *kursiv*, Zeilenumbrüche mit Enter, optional Embed oder DM.
 - **Giveaways** — Start mit Dauer (`7h`, `30m`, `1d`), Teilnehmen-Button, automatische Auslosung, Reroll.
 - **Vouches** — Bewertung mit Sternen, Produkt, Menge, Preis; Panel zum Nachschlagen von Käufer-/Verkäufer-Statistik.
 - **Services** — z. B. Bau-Service mit Limit (`10/10 Tickets – Limit erreicht`).
@@ -66,9 +66,9 @@ npm run bot
 | Befehl | Zweck |
 | --- | --- |
 | `/setup setzen` | Community-Name, Ticket-Kategorie, Team-Rolle, `/pay`-Empfänger |
-| `/msg` | Nachricht als Bot: Kanal oder DM an eine Person |
-| `/sagen` | Bot schreibt deinen Text (optional als Embed) |
-| `/embed` | Farbiges Embed mit Titel, Bild, Footer |
+| `/msg` | Textfenster mit Markdown; Kanal oder DM |
+| `/sagen` | Textfenster (optional als Embed) |
+| `/embed` | Farbiges Embed — Text im Formatierungsfenster |
 | `/ticket-kategorie hinzufuegen` | Anliegen für das Ticket-Dropdown |
 | `/ticket-panel` | Ticket-Panel senden (mehrfach möglich) |
 | `/ticket preis` | Im Ticket ohne Preis den Betrag setzen → `/pay y3zz` |
@@ -81,7 +81,7 @@ npm run bot
 | `/spawner-panel` | Spawner An-/Verkauf mit zwei Buttons |
 | `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
 | `/clan plaetze` | Maximum setzen (z. B. 30) |
-| `/clan info` / `/clan name` / `/clan preis-setzen` | Texte und Preise im Panel |
+| `/clan info` / `/clan name` / `/clan preis-setzen` | Texte (Info mit Markdown) und Preise im Panel |
 | `/clan rolle` | Rolle, die bei Annahme automatisch vergeben wird |
 | `/clan annehmen` / `ablehnen` / `kick` | Platz belegen, ablehnen oder wieder freigeben |
 | `/pay` | Zahlungsanfrage mit Gesamtbetrag posten |

@@ -20,7 +20,7 @@ import {
   updateClan,
 } from "./db.js";
 import { clanApplyButton, clanPanelEmbed, clanTicketControls, paymentEmbed, ticketControls } from "./embeds.js";
-import { COLORS, formatMillions, parsePrice, shopPayRecipient } from "./util.js";
+import { COLORS, formatMillions, formatUserText, parsePrice, shopPayRecipient } from "./util.js";
 import { createTicketChannel, insertTicket, isStaff, resolveTextChannel } from "./tickets.js";
 
 function panelPayload(guildId: string) {
@@ -104,10 +104,18 @@ export async function cmdClan(interaction: ChatInputCommandInteraction) {
   }
 
   if (sub === "info") {
-    const info = interaction.options.getString("text", true);
-    updateClan(guildId, { info });
-    await refreshClanPanels(interaction.client, guildId);
-    await interaction.reply({ content: "Clan-Info gespeichert und Panels aktualisiert.", flags: 64 });
+    const modal = new ModalBuilder().setCustomId("clan:info").setTitle("Clan-Info formatieren");
+    const input = new TextInputBuilder()
+      .setCustomId("text")
+      .setLabel("Text  ·  **fett**  *kursiv*  __unter__")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(1800)
+      .setPlaceholder("**FriendsWithMoney**\nWir suchen aktive Member.");
+    const existing = clan.info?.trim();
+    if (existing) input.setValue(existing.slice(0, 1800));
+    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(input));
+    await interaction.showModal(modal);
     return;
   }
 
@@ -334,6 +342,18 @@ export async function openClanApplyModal(interaction: ButtonInteraction) {
     ),
   );
   await interaction.showModal(modal);
+}
+
+export async function submitClanInfo(interaction: ModalSubmitInteraction) {
+  const guildId = requireGuildId(interaction.guildId);
+  const info = formatUserText(interaction.fields.getTextInputValue("text"));
+  if (!info.trim()) throw new Error("Clan-Info ist leer.");
+  updateClan(guildId, { info });
+  await refreshClanPanels(interaction.client, guildId);
+  await interaction.reply({
+    content: "Clan-Info gespeichert und Panels aktualisiert.\nFormat: `**fett**` `*kursiv*` `__unter__` — Enter für neue Zeile.",
+    flags: 64,
+  });
 }
 
 export async function submitClanApplication(interaction: ModalSubmitInteraction) {

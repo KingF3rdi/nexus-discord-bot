@@ -10,6 +10,14 @@ export const COLORS = {
 export function formatMoney(amount) {
     return `$${Math.round(amount).toLocaleString("de-DE")}`;
 }
+/** Discord-Markdown bleibt erhalten. `\\n` in Slash-Feldern wird zum Zeilenumbruch. */
+export function formatUserText(input) {
+    return input
+        .replace(/\r\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t")
+        .replace(/\\r/g, "");
+}
 export const DEFAULT_PAY_RECIPIENT = "y3zz";
 export function shopPayRecipient(override) {
     const clean = override?.replace(/^@/, "").trim();

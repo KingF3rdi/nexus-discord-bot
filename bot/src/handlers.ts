@@ -49,6 +49,7 @@ import {
   shopPayRecipient,
   shortId,
   stars,
+  formatUserText,
 } from "./util.js";
 import {
   assertCanOpenSupportTicket,
@@ -62,7 +63,14 @@ import {
 } from "./tickets.js";
 import { helpText } from "./commands.js";
 import { cmdSpawner, cmdSpawnerPanel, openSpawnerPicker, openSpawnerQtyModal, openSpawnerTicket } from "./spawners.js";
-import { cmdClan, cmdClanPanel, handleClanDecision, openClanApplyModal, submitClanApplication } from "./clan.js";
+import {
+  cmdClan,
+  cmdClanPanel,
+  handleClanDecision,
+  openClanApplyModal,
+  submitClanApplication,
+  submitClanInfo,
+} from "./clan.js";
 import { handleVouchDmButton, sendVouchDm } from "./vouch-dm.js";
 
 type AnyInteraction =
@@ -209,33 +217,117 @@ async function cmdSetup(interaction: ChatInputCommandInteraction) {
   });
 }
 
+type MsgDraft = {
+  command: string;
+  targetUserId: string | null;
+  channelId: string | null;
+  embed: boolean;
+  title: string | null;
+  color: number;
+  image: string | null;
+  footer: string | null;
+};
+
+const msgDrafts = new Map<string, MsgDraft>();
+
+function composeModal(maxLength: number) {
+  return new ModalBuilder()
+    .setCustomId("msg:compose")
+    .setTitle("Nachricht formatieren")
+    .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("text")
+          .setLabel("Text  ·  **fett**  *kursiv*  __unter__")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setMaxLength(maxLength)
+          .setPlaceholder("**Willkommen**\n*Shop ist online.*\n||Geheimnis||"),
+      ),
+    );
+}
+
+function saveMsgDraft(userId: string, draft: MsgDraft) {
+  msgDrafts.set(userId, draft);
+}
+
 async function cmdSay(interaction: ChatInputCommandInteraction) {
-  const text = interaction.options.getString("text", true);
-  const asEmbed = interaction.options.getBoolean("embed") ?? false;
-  const title = interaction.options.getString("titel");
-  const color = parseColor(interaction.options.getString("farbe"));
   const channel = await resolveTextChannel(interaction);
-  if (asEmbed) {
-    await channel.send({ embeds: [customEmbed({ title, description: text, color })] });
-  } else {
-    await channel.send({ content: text });
-  }
-  await interaction.reply({ content: `Nachricht in ${channel} gesendet.`, flags: 64 });
+  const asEmbed = interaction.options.getBoolean("embed") ?? false;
+  saveMsgDraft(interaction.user.id, {
+    command: "sagen",
+    targetUserId: null,
+    channelId: channel.id,
+    embed: asEmbed,
+    title: interaction.options.getString("titel"),
+    color: parseColor(interaction.options.getString("farbe")),
+    image: null,
+    footer: null,
+  });
+  await interaction.showModal(composeModal(asEmbed ? 4000 : 2000));
 }
 
 async function cmdMsg(interaction: ChatInputCommandInteraction) {
-  const text = interaction.options.getString("text", true);
   const user = interaction.options.getUser("user");
+  const kanal = interaction.options.getChannel("kanal");
   const asEmbed = interaction.options.getBoolean("embed") ?? false;
-  const title = interaction.options.getString("titel");
-  const color = parseColor(interaction.options.getString("farbe"));
-  const payload = asEmbed
-    ? { embeds: [customEmbed({ title, description: text, color })] }
+  let channelId: string | null = null;
+  if (kanal) {
+    channelId = kanal.id;
+  } else if (!user) {
+    channelId = (await resolveTextChannel(interaction)).id;
+  }
+  saveMsgDraft(interaction.user.id, {
+    command: "msg",
+    targetUserId: user?.id ?? null,
+    channelId,
+    embed: asEmbed,
+    title: interaction.options.getString("titel"),
+    color: parseColor(interaction.options.getString("farbe")),
+    image: null,
+    footer: null,
+  });
+  await interaction.showModal(composeModal(asEmbed ? 4000 : 2000));
+}
+
+async function cmdEmbed(interaction: ChatInputCommandInteraction) {
+  const channel = await resolveTextChannel(interaction);
+  saveMsgDraft(interaction.user.id, {
+    command: "embed",
+    targetUserId: null,
+    channelId: channel.id,
+    embed: true,
+    title: interaction.options.getString("titel"),
+    color: parseColor(interaction.options.getString("farbe")),
+    image: interaction.options.getString("bild"),
+    footer: interaction.options.getString("footer"),
+  });
+  await interaction.showModal(composeModal(4000));
+}
+
+async function submitMsgCompose(interaction: ModalSubmitInteraction) {
+  const draft = msgDrafts.get(interaction.user.id);
+  msgDrafts.delete(interaction.user.id);
+  if (!draft) throw new Error("Entwurf abgelaufen. Bitte `/msg`, `/sagen` oder `/embed` nochmal ausführen.");
+  const text = formatUserText(interaction.fields.getTextInputValue("text"));
+  if (!text.trim()) throw new Error("Nachricht ist leer.");
+  const payload = draft.embed
+    ? {
+        embeds: [
+          customEmbed({
+            title: draft.title,
+            description: text,
+            color: draft.color,
+            image: draft.image,
+            footer: draft.footer,
+          }),
+        ],
+      }
     : { content: text };
   const sent: string[] = [];
-  const wantsChannel = Boolean(interaction.options.getChannel("kanal")) || !user;
 
-  if (user) {
+  if (draft.targetUserId) {
+    const user = await interaction.client.users.fetch(draft.targetUserId);
     try {
       await user.send(payload);
       sent.push(`DM an ${user}`);
@@ -244,27 +336,23 @@ async function cmdMsg(interaction: ChatInputCommandInteraction) {
     }
   }
 
-  if (wantsChannel) {
-    const channel = await resolveTextChannel(interaction);
+  if (draft.channelId) {
+    const channel = await interaction.client.channels.fetch(draft.channelId).catch(() => null);
+    if (!channel || !channel.isTextBased() || !("send" in channel) || channel.isDMBased()) {
+      throw new Error("Zielkanal nicht gefunden oder kein Textkanal.");
+    }
     await channel.send(payload);
     sent.push(`${channel}`);
   }
 
+  if (!sent.length) {
+    throw new Error("Kein Ziel. `/msg` mit user: oder kanal: nutzen.");
+  }
+
   await interaction.reply({
-    content: `Nachricht gesendet: ${sent.join(" · ")}`,
+    content: `Nachricht gesendet: ${sent.join(" · ")}\nFormat: \`**fett**\` \`*kursiv*\` \`__unter__\` \`~~durch~~\` \`||spoiler||\` · Zeilenumbruch mit Enter`,
     flags: 64,
   });
-}
-
-async function cmdEmbed(interaction: ChatInputCommandInteraction) {
-  const description = interaction.options.getString("beschreibung", true);
-  const title = interaction.options.getString("titel");
-  const color = parseColor(interaction.options.getString("farbe"));
-  const image = interaction.options.getString("bild");
-  const footerText = interaction.options.getString("footer");
-  const channel = await resolveTextChannel(interaction);
-  await channel.send({ embeds: [customEmbed({ title, description, color, image, footer: footerText })] });
-  await interaction.reply({ content: `Embed in ${channel} gesendet.`, flags: 64 });
 }
 
 async function cmdTicketCategory(interaction: ChatInputCommandInteraction) {
@@ -337,9 +425,13 @@ async function cmdProduct(interaction: ChatInputCommandInteraction) {
       .run(
         interaction.guildId,
         interaction.options.getString("name", true),
-        interaction.options.getString("beschreibung") ?? "Zum Verkauf steht dieses Angebot:",
-        interaction.options.getString("begruessung"),
-        interaction.options.getString("warnung"),
+        formatUserText(interaction.options.getString("beschreibung") ?? "Zum Verkauf steht dieses Angebot:"),
+        interaction.options.getString("begruessung")
+          ? formatUserText(interaction.options.getString("begruessung")!)
+          : null,
+        interaction.options.getString("warnung")
+          ? formatUserText(interaction.options.getString("warnung")!)
+          : null,
         interaction.options.getInteger("preis", true),
         seller.id,
         interaction.options.getString("empfaenger", true),
@@ -425,8 +517,10 @@ async function cmdService(interaction: ChatInputCommandInteraction) {
         interaction.guildId,
         interaction.options.getString("name", true),
         interaction.options.getString("emoji", true),
-        interaction.options.getString("beschreibung", true),
-        interaction.options.getString("wichtig"),
+        formatUserText(interaction.options.getString("beschreibung", true)),
+        interaction.options.getString("wichtig")
+          ? formatUserText(interaction.options.getString("wichtig")!)
+          : null,
         interaction.options.getInteger("limit") ?? 10,
       );
     await interaction.reply({
@@ -498,9 +592,11 @@ async function cmdGiveaway(interaction: ChatInputCommandInteraction) {
     const endsAt = new Date(Date.now() + duration);
     const channel = await resolveTextChannel(interaction);
     const payload = {
-      title: interaction.options.getString("titel", true),
-      description: interaction.options.getString("beschreibung"),
-      prize: interaction.options.getString("gewinne", true),
+      title: formatUserText(interaction.options.getString("titel", true)),
+      description: interaction.options.getString("beschreibung")
+        ? formatUserText(interaction.options.getString("beschreibung")!)
+        : null,
+      prize: formatUserText(interaction.options.getString("gewinne", true)),
       endsAt,
       publicId,
     };
@@ -786,8 +882,16 @@ export async function handleModal(interaction: import("discord.js").ModalSubmitI
       await openSpawnerTicket(interaction, direction, spawnerId);
       return;
     }
+    if (interaction.customId === "msg:compose") {
+      await submitMsgCompose(interaction);
+      return;
+    }
     if (interaction.customId === "clan:apply") {
       await submitClanApplication(interaction);
+      return;
+    }
+    if (interaction.customId === "clan:info") {
+      await submitClanInfo(interaction);
       return;
     }
     if (interaction.customId.startsWith("ticket:setprice:")) {

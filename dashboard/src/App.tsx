@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Code,
   DiscordButton,
@@ -9,6 +9,7 @@ import {
   SelectBox,
 } from "./components/ui";
 import { formatMillions, formatMoney, payCommand, stars } from "./format";
+import { DiscordMarkdown } from "./markdown";
 
 type ChannelId = "ticket" | "map" | "vouch" | "fwm" | "giveaway" | "services" | "spawner" | "clan" | "commands" | `kauf-${string}`;
 
@@ -407,7 +408,7 @@ function WarningChannel({ extras }: { extras: { text: string; color: string }[] 
       {extras.map((m, i) => (
         <DiscordMessage key={i}>
           <Embed color={m.color}>
-            <p className="whitespace-pre-wrap">{m.text}</p>
+            <DiscordMarkdown text={m.text} />
           </Embed>
         </DiscordMessage>
       ))}
@@ -711,6 +712,31 @@ function CommandsChannel({
   setSayColor: (v: string) => void;
   onSend: () => void;
 }) {
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+
+  function wrap(before: string, after = before) {
+    const el = areaRef.current;
+    const start = el?.selectionStart ?? sayText.length;
+    const end = el?.selectionEnd ?? sayText.length;
+    const selected = sayText.slice(start, end) || "text";
+    const next = sayText.slice(0, start) + before + selected + after + sayText.slice(end);
+    setSayText(next);
+    requestAnimationFrame(() => {
+      el?.focus();
+      const from = start + before.length;
+      el?.setSelectionRange(from, from + selected.length);
+    });
+  }
+
+  const marks = [
+    { label: "Fett", hint: "**", run: () => wrap("**") },
+    { label: "Kursiv", hint: "*", run: () => wrap("*") },
+    { label: "Unterstrichen", hint: "__", run: () => wrap("__") },
+    { label: "Durchgestrichen", hint: "~~", run: () => wrap("~~") },
+    { label: "Spoiler", hint: "||", run: () => wrap("||") },
+    { label: "Code", hint: "`", run: () => wrap("`") },
+  ];
+
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4">
       <Embed color="#5865f2" footer="Diese Vorschau zeigt das Look & Feel. Der echte Bot läuft in Discord.">
@@ -720,7 +746,7 @@ function CommandsChannel({
           Kanäle gesendet werden.
         </p>
         <Field name="/setup setzen" value="Ticket-Kategorie, Team-Rolle, Standard-/pay-Empfänger" />
-        <Field name="/msg · /sagen · /embed" value="/msg schreibt in einen Kanal oder per DM an eine Person" />
+        <Field name="/msg · /sagen · /embed" value="Textfenster: **fett**, *kursiv*, Zeilenumbrüche — Kanal oder DM" />
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
@@ -734,12 +760,37 @@ function CommandsChannel({
       </Embed>
       <div className="rounded-lg bg-[#2b2d31] p-4">
         <p className="mb-2 font-semibold text-white">Nachricht als Bot senden (Vorschau)</p>
+        <p className="mb-2 text-xs text-[#949ba4]">
+          Wie in Discord: <code className="text-[#dbdee1]">**fett**</code>{" "}
+          <code className="text-[#dbdee1]">*kursiv*</code>{" "}
+          <code className="text-[#dbdee1]">__unter__</code> · Enter = neue Zeile
+        </p>
+        <div className="mb-2 flex flex-wrap gap-1">
+          {marks.map((m) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={m.run}
+              title={`${m.hint}text${m.hint}`}
+              className="rounded bg-[#1e1f22] px-2 py-1 text-xs text-[#dbdee1] hover:bg-[#111214]"
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
         <textarea
+          ref={areaRef}
           value={sayText}
           onChange={(e) => setSayText(e.target.value)}
-          placeholder="Text, den der Bot in #FRIENDSWITHMONEY posten soll …"
-          className="mb-2 h-28 w-full resize-none rounded bg-[#1e1f22] p-3 text-sm text-white outline-none"
+          placeholder={"**Willkommen**\nShop ist *online*.\n||Geheimnis||"}
+          className="mb-2 h-28 w-full resize-y rounded bg-[#1e1f22] p-3 text-sm text-white outline-none"
         />
+        {sayText.trim() ? (
+          <div className="mb-3 rounded bg-[#1e1f22] p-3">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#949ba4]">Vorschau</p>
+            <DiscordMarkdown text={sayText} />
+          </div>
+        ) : null}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-xs text-[#949ba4]">Embed-Farbe</span>
           {["#ed4245", "#23a559", "#fee75c", "#5865f2"].map((c) => (

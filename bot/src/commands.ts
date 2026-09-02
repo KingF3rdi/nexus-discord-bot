@@ -35,9 +35,8 @@ export const commands = [
 
   new SlashCommandBuilder()
     .setName("sagen")
-    .setDescription("Der Bot sendet deinen Text (optional als Embed)")
+    .setDescription("Textfenster: Markdown, Zeilenumbrüche, optional Embed")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addStringOption((o) => o.setName("text").setDescription("Nachricht").setRequired(true))
     .addChannelOption((o) =>
       o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
     )
@@ -47,22 +46,20 @@ export const commands = [
 
   new SlashCommandBuilder()
     .setName("msg")
-    .setDescription("Nachricht als Bot schreiben — Kanal oder DM")
+    .setDescription("Textfenster mit Formatierung — Kanal oder DM")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addStringOption((o) => o.setName("text").setDescription("Nachricht").setRequired(true).setMaxLength(2000))
-    .addUserOption((o) => o.setName("user").setDescription("Per DM an diese Person (statt oder zusätzlich zum Kanal)"))
+    .addUserOption((o) => o.setName("user").setDescription("Per DM an diese Person"))
     .addChannelOption((o) =>
       o.setName("kanal").setDescription("Zielkanal (Standard: hier)").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
     )
-    .addBooleanOption((o) => o.setName("embed").setDescription("Als Embed senden"))
-    .addStringOption((o) => o.setName("titel").setDescription("Embed-Titel"))
-    .addStringOption((o) => o.setName("farbe").setDescription("Embed-Farbe (gruen, gelb, rot, gold oder #hex)")),
+    .addBooleanOption((o) => o.setName("embed").setDescription("Als farbiges Embed senden"))
+    .addStringOption((o) => o.setName("titel").setDescription("Embed-/Nachrichtentitel"))
+    .addStringOption((o) => o.setName("farbe").setDescription("Embed-Farbe: gruen, gelb, rot, gold oder #hex")),
 
   new SlashCommandBuilder()
     .setName("embed")
-    .setDescription("Eine formatierte Embed-Nachricht senden")
+    .setDescription("Embed senden — Textfenster mit Markdown und Zeilenumbrüchen")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addStringOption((o) => o.setName("beschreibung").setDescription("Inhalt (Markdown erlaubt)").setRequired(true))
     .addStringOption((o) => o.setName("titel").setDescription("Titel"))
     .addStringOption((o) => o.setName("farbe").setDescription("gruen, gelb, rot, gold oder #hex"))
     .addStringOption((o) => o.setName("bild").setDescription("Bild-URL"))
@@ -331,10 +328,7 @@ export const commands = [
     .addSubcommand((s) =>
       s
         .setName("info")
-        .setDescription("Clan-Beschreibung für das Panel setzen")
-        .addStringOption((o) =>
-          o.setName("text").setDescription("Was der Clan anbietet / Regeln").setRequired(true).setMaxLength(1800),
-        ),
+        .setDescription("Clan-Beschreibung setzen (Textfenster: Markdown, Zeilenumbrüche)"),
     )
     .addSubcommand((s) =>
       s
@@ -414,9 +408,8 @@ export function helpText() {
     "`/setup anzeigen` — aktuelle Werte",
     "",
     "**Nachrichten**",
-    "`/msg` — Nachricht schreiben (Kanal oder DM an eine Person)",
-    "`/sagen` — Bot schreibt deinen Text",
-    "`/embed` — farbiges Embed senden",
+    "`/msg` · `/sagen` · `/embed` — Textfenster: **fett**, *kursiv*, __unter__, ~~durch~~, ||spoiler||, echte Zeilenumbrüche",
+    "`/msg user:` — dieselbe Formatierung per DM",
     "",
     "**Tickets**",
     "`/ticket-kategorie hinzufuegen` — Anliegen anlegen",
@@ -435,7 +428,7 @@ export function helpText() {
     "Nach dem Kauf: Bewertung per DM (Sterne), wird als Vouch gepostet",
     "",
     "**Clan**",
-    "`/clan name` · `/clan info` · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
+    "`/clan name` · `/clan info` (formatiert) · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
     "`/clan preis-setzen` · `/clan preis-liste` · `/clan empfaenger`",
     "`/clan-panel` — Bewerbungspanel (Plätze nur bei Annahme, 1 Person = 1 Platz)",
     "`/clan rolle` — Rolle, die bei Annahme automatisch vergeben wird",

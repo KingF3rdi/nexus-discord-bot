@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatMillions, formatMoney, parseDuration, parsePrice, payCommand, stars } from "./util.js";
+import { formatMillions, formatMoney, parseDuration, parsePrice, payCommand, stars, formatUserText } from "./util.js";
 test("formatiert Preise deutsch", () => {
     assert.equal(formatMoney(6_000_000), "$6.000.000");
     assert.equal(formatMoney(12300), "$12.300");
@@ -29,4 +29,9 @@ test("Spawner-Preise in Millionen", () => {
     assert.equal(parsePrice("4,0M"), 4_000_000);
     assert.equal(parsePrice("STOP"), null);
     assert.equal(parsePrice("13100000"), 13_100_000);
+});
+test("wandelt \\n in Slash-Text in echte Zeilenumbrüche um", () => {
+    assert.equal(formatUserText("Hallo\\nWelt"), "Hallo\nWelt");
+    assert.equal(formatUserText("**fett** *kursiv*"), "**fett** *kursiv*");
+    assert.equal(formatUserText("a\\t b"), "a\t b");
 });
