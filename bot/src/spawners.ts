@@ -58,6 +58,13 @@ export async function refreshSpawnerPanels(client: Client, guildId: string) {
   }
 }
 
+export async function refreshAllSpawnerPanels(client: Client) {
+  const rows = db.prepare("SELECT DISTINCT guild_id FROM panels WHERE type = 'spawner'").all() as { guild_id: string }[];
+  for (const row of rows) {
+    await refreshSpawnerPanels(client, row.guild_id);
+  }
+}
+
 function upsertSpawner(
   guildId: string,
   name: string,

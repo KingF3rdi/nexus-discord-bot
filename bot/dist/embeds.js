@@ -84,50 +84,71 @@ export function ticketControls(ticketId, opts) {
             .setLabel("Preis festlegen");
     return new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setStyle(ButtonStyle.Primary).setLabel("Übernehmen"), payOrPrice, new ButtonBuilder().setCustomId(`ticket:close:${ticketId}`).setStyle(ButtonStyle.Danger).setLabel("Schließen"));
 }
+function spawnerPrice(amount) {
+    if (amount == null)
+        return "⛔ **STOP**";
+    return `\`${formatMillions(amount)}\``;
+}
 export function spawnerPanelEmbed(config, spawners, notifyChannelId) {
-    const list = spawners
-        .map((s) => {
-        const buy = formatMillions(s.buy_price);
-        const sell = formatMillions(s.sell_price);
-        const mark = s.emoji ? `${s.emoji} ` : "";
-        return `${mark}*${s.name}*\n📥 Ankaufspreis: \`${buy}\`\n📤 Verkaufspreis: \`${sell}\`\n--------------------------------`;
-    })
-        .join("\n");
+    const shown = spawners.slice(0, 21);
+    const extra = spawners.length - shown.length;
+    const items = shown.map((s) => ({
+        name: `${s.emoji?.trim() || "🧱"}  ${s.name}`,
+        value: `📥 Ankauf  ${spawnerPrice(s.buy_price)}\n📤 Verkauf  ${spawnerPrice(s.sell_price)}`,
+        inline: true,
+    }));
     const notify = notifyChannelId
-        ? `Aktiviere unbedingt die Benachrichtigungen in <#${notifyChannelId}>, um zu erfahren, wann wir aktiv sind.`
-        : "Aktiviere unbedingt die Benachrichtigungen, um zu erfahren, wann wir aktiv sind.";
-    return new EmbedBuilder()
-        .setColor(COLORS.green)
-        .setTitle("🧱 Spawner An-/Verkauf")
+        ? `Schalte die Glocke in <#${notifyChannelId}> ein — so siehst du, wann wir aktiv sind.`
+        : "Schalte die Glocke in diesem Kanal ein — so siehst du, wann wir aktiv sind.";
+    const embed = new EmbedBuilder()
+        .setColor(COLORS.gold)
+        .setAuthor({ name: `${config.community_name} · Spawner-Shop` })
+        .setTitle("🧱 Spawner An- & Verkauf")
         .setDescription([
-        "Im folgenden sind die Preise für jeden Spawner-Typen aufgelistet.",
-        "Der **Ankaufspreis** ist der Preis, für welchen wir deine Spawner ankaufen.",
-        "Der **Verkaufspreis** ist der Preis, für welchen wir dir Spawner verkaufen.",
-        "Drücke einfach auf die Buttons, um eine Anfrage zu erstellen.",
+        "Wir **kaufen** deine Spawner an und **verkaufen** aus dem Lager.",
         "",
-        "**Haftungsausschluss - Scamming**",
-        "Wir übernehmen nur Verantwortung für User in folgenden Gruppen: **FWM, FWM1, FWM2, FWM3, FWM4, FWM5, FWM6** und **FWM7**.",
+        "📥 **Ankauf** — das zahlen wir dir",
+        "📤 **Verkauf** — das zahlst du uns",
+        "⛔ **STOP** — gerade nicht möglich",
         "",
-        "**Hinweis zu Spawner-Anfragen**",
-        notify,
-        "",
-        "**Aktuelle Spawner-Arten:**",
-        "--------------------------------",
-        list || "_Keine Spawner angelegt. `/spawner hinzufuegen` nutzen._",
+        shown.length ? "**Aktuelle Preise**" : "_Keine Spawner angelegt. `/spawner hinzufuegen`_",
     ].join("\n"))
-        .setFooter({ text: "LG Management" })
+        .setFooter({
+        text: extra > 0
+            ? `${footer(config, "Spawner-Shop")} · +${extra} weitere in /spawner liste`
+            : footer(config, "Spawner-Shop"),
+    })
         .setTimestamp();
+    if (items.length) {
+        if (items.length % 3 === 1) {
+            items.push({ name: "\u200b", value: "\u200b", inline: true }, { name: "\u200b", value: "\u200b", inline: true });
+        }
+        else if (items.length % 3 === 2) {
+            items.push({ name: "\u200b", value: "\u200b", inline: true });
+        }
+        embed.addFields(items);
+    }
+    embed.addFields({
+        name: "⚠️ Haftung",
+        value: "Wir haften **nur** für User in **FWM, FWM1, FWM2, FWM3, FWM4, FWM5, FWM6** und **FWM7**.",
+        inline: false,
+    }, {
+        name: "🔔 Hinweis",
+        value: `${notify}\nUnten ein Ticket öffnen — Ankauf oder Verkauf.`,
+        inline: false,
+    });
+    return embed;
 }
 export function spawnerButtons() {
     return new ActionRowBuilder().addComponents(new ButtonBuilder()
         .setCustomId("spawner:sell")
         .setStyle(ButtonStyle.Success)
         .setEmoji("📥")
-        .setLabel("Ich möchte meine Spawner verkaufen."), new ButtonBuilder()
+        .setLabel("An uns verkaufen"), new ButtonBuilder()
         .setCustomId("spawner:buy")
         .setStyle(ButtonStyle.Primary)
         .setEmoji("📤")
-        .setLabel("Ich möchte Spawner kaufen."));
+        .setLabel("Von uns kaufen"));
 }
 export function clanPanelEmbed(config, clan, filled, prices) {
     const full = filled >= clan.max_slots;

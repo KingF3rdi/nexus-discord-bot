@@ -469,6 +469,11 @@ function GiveawayChannel({
   );
 }
 
+function SpawnerPrice({ amount }: { amount: number | null }) {
+  if (amount == null) return <span className="font-semibold text-[#f23f43]">STOP</span>;
+  return <Code>{formatMillions(amount)}</Code>;
+}
+
 function SpawnerChannel() {
   const spawners: { name: string; emoji: string; buy: number | null; sell: number | null }[] = [
     { name: "Blaze", emoji: "🔥", buy: 4_000_000, sell: null },
@@ -489,31 +494,40 @@ function SpawnerChannel() {
 
   return (
     <DiscordMessage>
-      <Embed color="#23a559" footer="LG Management">
-        <p className="text-[16px] font-semibold text-white">🧱 Spawner An-/Verkauf</p>
+      <Embed color="#f0b232" author="FriendsWithMoney · Spawner-Shop" footer="FriendsWithMoney · Spawner-Shop">
+        <p className="text-[16px] font-semibold text-white">🧱 Spawner An- & Verkauf</p>
         <p className="mt-2">
-          Im folgenden sind die Preise für jeden Spawner-Typen aufgelistet. Der <strong>Ankaufspreis</strong> ist der
-          Preis, für welchen wir deine Spawner ankaufen. Der <strong>Verkaufspreis</strong> ist der Preis, für welchen
-          wir dir Spawner verkaufen.
+          Wir <strong>kaufen</strong> deine Spawner an und <strong>verkaufen</strong> aus dem Lager.
         </p>
-        <p className="mt-2">Drücke einfach auf die Buttons, um eine Anfrage zu erstellen.</p>
+        <ul className="mt-2 space-y-0.5 text-[14px]">
+          <li>📥 <strong>Ankauf</strong> — das zahlen wir dir</li>
+          <li>📤 <strong>Verkauf</strong> — das zahlst du uns</li>
+          <li>⛔ <strong>STOP</strong> — gerade nicht möglich</li>
+        </ul>
+        <p className="mt-3 text-[14px] font-bold text-[#f2f3f5]">Aktuelle Preise</p>
+        <div className="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+          {spawners.map((s) => (
+            <div key={s.name} className="rounded-[4px] bg-[#1e1f22] px-2.5 py-2">
+              <p className="text-[14px] font-semibold text-[#f2f3f5]">
+                {s.emoji} {s.name}
+              </p>
+              <p className="mt-1 text-[13px] text-[#dbdee1]">
+                📥 Ankauf <SpawnerPrice amount={s.buy} />
+              </p>
+              <p className="text-[13px] text-[#dbdee1]">
+                📤 Verkauf <SpawnerPrice amount={s.sell} />
+              </p>
+            </div>
+          ))}
+        </div>
         <Field
-          name="Haftungsausschluss - Scamming"
-          value="Wir übernehmen nur Verantwortung für User in folgenden Gruppen: FWM, FWM1–FWM7."
+          name="⚠️ Haftung"
+          value="Wir haften nur für User in FWM, FWM1–FWM7."
         />
-        <Field name="Hinweis zu Spawner-Anfragen" value="Aktiviere die Benachrichtigungen, um zu erfahren, wann wir aktiv sind." />
-        <p className="mt-3 font-bold text-white">Aktuelle Spawner-Arten:</p>
-        {spawners.map((s) => (
-          <p key={s.name} className="mt-2 border-t border-[#4e5058] pt-2">
-            <em>
-              {s.emoji} {s.name}
-            </em>
-            <br />
-            📥 Ankaufspreis: <Code>{formatMillions(s.buy)}</Code>
-            <br />
-            📤 Verkaufspreis: <Code>{formatMillions(s.sell)}</Code>
-          </p>
-        ))}
+        <Field
+          name="🔔 Hinweis"
+          value="Glocke im Kanal an — dann siehst du, wann wir aktiv sind. Unten ein Ticket öffnen."
+        />
       </Embed>
       <DiscordButton
         onClick={() => {
@@ -521,7 +535,7 @@ function SpawnerChannel() {
           setPick("");
         }}
       >
-        📥 Ich möchte meine Spawner verkaufen.
+        📥 An uns verkaufen
       </DiscordButton>
       <DiscordButton
         variant="primary"
@@ -530,13 +544,11 @@ function SpawnerChannel() {
           setPick("");
         }}
       >
-        📤 Ich möchte Spawner kaufen.
+        📤 Von uns kaufen
       </DiscordButton>
       {dir && (
         <div className="mt-3 max-w-[520px] rounded bg-[#2b2d31] p-3">
-          <p className="mb-2 text-sm text-white">
-            {dir === "buy" ? "Spawner kaufen" : "Spawner an uns verkaufen"}
-          </p>
+          <p className="mb-2 text-sm text-white">{dir === "buy" ? "Von uns kaufen" : "An uns verkaufen"}</p>
           <SelectBox
             placeholder="Spawner auswählen ..."
             options={spawners
@@ -763,7 +775,7 @@ function CommandsChannel({
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
-        <Field name="/spawner rolle + /spawner-panel" value="Eigene Support-Rolle nur für Spawner-Tickets" />
+        <Field name="/spawner rolle + /spawner-panel" value="Preiskacheln, STOP, eigene Support-Rolle für Spawner-Tickets" />
         <Field name="/clan + /clan-panel" value="Bewerbungspanel, Plätze, Rolle bei Annahme automatisch" />
         <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />

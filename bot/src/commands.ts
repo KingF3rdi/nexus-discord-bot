@@ -422,7 +422,7 @@ export function helpText() {
     "`/buy-panel` — Kauf-Button posten (mehrere Panels möglich)",
     "`/spawner hinzufuegen` · `/spawner setzen` · `/spawner emoji` · `/spawner entfernen`",
     "`/spawner rolle` — eigene Support-Rolle für Spawner-Tickets",
-    "`/spawner-panel` — An-/Verkauf mit STOP und /pay im Ticket",
+    "`/spawner-panel` — Preisliste als Kacheln, An-/Verkauf mit STOP",
     "Im Ticket: Gesamtpreis × Menge und kopierbarer `/pay y3zz`-Befehl",
     "`/pay` — Zahlungsanfrage manuell posten",
     "Nach dem Kauf: Bewertung per DM (Sterne), wird als Vouch gepostet",

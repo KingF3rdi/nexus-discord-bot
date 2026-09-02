@@ -5,6 +5,7 @@ import { Events } from "discord.js";
 import { client } from "./client.js";
 import { commands } from "./commands.js";
 import { handleButton, handleChatCommand, handleModal, handleSelect, handleUserSelect, tickGiveaways } from "./handlers.js";
+import { refreshAllSpawnerPanels } from "./spawners.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ quiet: true });
@@ -82,6 +83,7 @@ async function registerCommands() {
 client.once(Events.ClientReady, async (ready) => {
   console.log(`[Nexus] Online als ${ready.user.tag} · Intents ${client.options.intents?.bitfield ?? 1}`);
   await registerCommands();
+  await refreshAllSpawnerPanels(client).catch((err) => console.error("Spawner-Panels konnten nicht aktualisiert werden:", err));
   setInterval(() => tickGiveaways(client), 15_000);
 });
 
@@ -129,7 +131,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-console.log("[Nexus] 1.0.9 start · Gateway-Intents: Guilds only");
+console.log("[Nexus] 1.0.10 start · Gateway-Intents: Guilds only");
 client.login(token).catch((err: unknown) => {
   if (isDisallowedIntents(err)) printIntentsHelp();
   else console.error(err);

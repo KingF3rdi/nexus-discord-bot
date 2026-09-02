@@ -36,6 +36,12 @@ export async function refreshSpawnerPanels(client, guildId) {
         await msg?.edit(panelPayload(guildId, row.extra)).catch(() => undefined);
     }
 }
+export async function refreshAllSpawnerPanels(client) {
+    const rows = db.prepare("SELECT DISTINCT guild_id FROM panels WHERE type = 'spawner'").all();
+    for (const row of rows) {
+        await refreshSpawnerPanels(client, row.guild_id);
+    }
+}
 function upsertSpawner(guildId, name, buy, sell, emoji, mode = "upsert") {
     const existing = db
         .prepare("SELECT id, emoji FROM spawners WHERE guild_id = ? AND lower(name) = lower(?)")
