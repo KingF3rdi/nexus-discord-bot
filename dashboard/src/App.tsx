@@ -456,14 +456,14 @@ function GiveawayChannel({
 }
 
 function SpawnerChannel() {
-  const spawners: { name: string; buy: number | null; sell: number | null }[] = [
-    { name: "Blaze", buy: 4_000_000, sell: null },
-    { name: "Cow", buy: 4_000_000, sell: null },
-    { name: "Creeper", buy: 3_500_000, sell: 5_500_000 },
-    { name: "Iron", buy: 8_000_000, sell: null },
-    { name: "Piglin", buy: 4_000_000, sell: null },
-    { name: "Skelly", buy: 13_100_000, sell: 14_000_000 },
-    { name: "Spider", buy: 4_000_000, sell: null },
+  const spawners: { name: string; emoji: string; buy: number | null; sell: number | null }[] = [
+    { name: "Blaze", emoji: "🔥", buy: 4_000_000, sell: null },
+    { name: "Cow", emoji: "🐮", buy: 4_000_000, sell: null },
+    { name: "Creeper", emoji: "💥", buy: 3_500_000, sell: 5_500_000 },
+    { name: "Iron", emoji: "⚙️", buy: 8_000_000, sell: null },
+    { name: "Piglin", emoji: "🐷", buy: 4_000_000, sell: null },
+    { name: "Skelly", emoji: "💀", buy: 13_100_000, sell: 14_000_000 },
+    { name: "Spider", emoji: "🕷️", buy: 4_000_000, sell: null },
   ];
   const [dir, setDir] = useState<"buy" | "sell" | null>(null);
   const [pick, setPick] = useState<string>("");
@@ -471,7 +471,7 @@ function SpawnerChannel() {
   const chosen = spawners.find((s) => s.name === pick);
   const unit = dir === "buy" ? chosen?.sell : chosen?.buy;
   const total = unit != null ? unit * qty : 0;
-  const cmd = dir === "buy" ? payCommand("FriendsWithMny", total) : payCommand("DeinName", total);
+  const cmd = dir === "buy" ? payCommand("y3zz", total) : payCommand("DeinName", total);
 
   return (
     <DiscordMessage>
@@ -491,7 +491,9 @@ function SpawnerChannel() {
         <p className="mt-3 font-bold text-white">Aktuelle Spawner-Arten:</p>
         {spawners.map((s) => (
           <p key={s.name} className="mt-2 border-t border-[#4e5058] pt-2">
-            <em>{s.name}</em>
+            <em>
+              {s.emoji} {s.name}
+            </em>
             <br />
             📥 Ankaufspreis: <Code>{formatMillions(s.buy)}</Code>
             <br />
@@ -525,7 +527,7 @@ function SpawnerChannel() {
             placeholder="Spawner auswählen ..."
             options={spawners
               .filter((s) => (dir === "buy" ? s.sell != null : s.buy != null))
-              .map((s) => ({ value: s.name, label: s.name }))}
+              .map((s) => ({ value: s.name, label: `${s.emoji} ${s.name}` }))}
             onChange={setPick}
             value={pick}
           />
@@ -721,9 +723,11 @@ function CommandsChannel({
         <Field name="/sagen · /embed" value="Bot schreibt deinen Text oder ein farbiges Embed" />
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
-        <Field name="/spawner setzen + /spawner-panel" value="Spawner An-/Verkauf, STOP, Ticket mit Gesamtpreis und /pay" />
+        <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
+        <Field name="/spawner rolle + /spawner-panel" value="Eigene Support-Rolle nur für Spawner-Tickets" />
         <Field name="/clan + /clan-panel" value="Bewerbungspanel: Info, Preise, Plätze 4/30 — nur angenommene zählen, nie doppelt" />
-        <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay Spieler Betrag" />
+        <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
+        <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />
         <Field name="/vouch erstellen · /vouch-panel" value="Bewertungen und Statistik-Dropdown" />
         <Field name="/service-panel" value="Services mit Ticket-Limit (z. B. 10/10)" />
@@ -766,28 +770,70 @@ function TicketView({
   copied: boolean;
   onCopy: (cmd: string) => void;
 }) {
-  if (ticket.kind === "buy" && ticket.total && ticket.recipient && ticket.unitPrice) {
-    const cmd = payCommand(ticket.recipient, ticket.total);
+  const [pay, setPay] = useState<{ total: number; unit: number; product: string; qty: number } | null>(
+    ticket.kind === "buy" && ticket.total && ticket.unitPrice
+      ? {
+          total: ticket.total,
+          unit: ticket.unitPrice,
+          product: ticket.product ?? PRODUCT.name,
+          qty: ticket.quantity ?? 1,
+        }
+      : null,
+  );
+  const [draft, setDraft] = useState("5,0M");
+  const [closed, setClosed] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+
+  function parseDraft(raw: string) {
+    const t = raw.trim().toUpperCase().replace(/\s/g, "");
+    if (t.endsWith("M")) return Math.round(Number(t.slice(0, -1).replace(",", ".")) * 1_000_000);
+    return Math.round(Number(t.replace(/\./g, "").replace(",", ".")));
+  }
+
+  if (closed) {
+    return (
+      <DiscordMessage>
+        <Embed color="#fee75c" footer="Direktnachricht · Bewertung nach dem Kauf">
+          <p className="text-[16px] font-semibold text-white">⭐ Wie war der Kauf?</p>
+          <p className="mt-2">
+            Danke für deinen Einkauf. Bitte bewerte mit 1–5 Sternen. Die Bewertung erscheint als Vouch auf dem Server.
+          </p>
+        </Embed>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <DiscordButton key={n} variant={n >= 4 ? "success" : "secondary"} onClick={() => setRating(n)}>
+              {n}★
+            </DiscordButton>
+          ))}
+        </div>
+        {rating != null && (
+          <p className="mt-2 text-sm text-[#23a559]">Danke — {rating}/5 Sterne wurden als Vouch veröffentlicht.</p>
+        )}
+      </DiscordMessage>
+    );
+  }
+
+  if (pay) {
+    const cmd = payCommand("y3zz", pay.total);
     return (
       <DiscordMessage>
         <p className="mb-2 text-sm">
-          <Mention>@Du</Mention> · <Mention>{PRODUCT.seller}</Mention> · <Mention>@Team</Mention>
+          <Mention>@Du</Mention> · <Mention>@Team</Mention>
         </p>
-        <Embed color="#23a559" footer={`FriendsWithMoney · Bestellung ${PRODUCT.sku}`}>
+        <Embed color="#23a559" footer="FriendsWithMoney · Bestellung">
           <p className="text-[16px] font-semibold text-white">💳 Zahlungsanfrage</p>
           <p className="mt-2">
             Hallo <Mention>@Du</Mention>, hier ist deine Bestellung. Bitte überweise den Betrag <strong>nur</strong> mit
             dem Befehl aus dieser Nachricht.
           </p>
-          <Field name="📦 Produkt" value={ticket.product ?? PRODUCT.name} />
-          <Field name="⚖️ Menge" value={String(ticket.quantity)} />
-          <Field name="💵 Einzelpreis" value={formatMoney(ticket.unitPrice)} />
+          <Field name="📦 Produkt" value={pay.product} />
+          <Field name="⚖️ Menge" value={String(pay.qty)} />
+          <Field name="💵 Einzelpreis" value={formatMoney(pay.unit)} />
           <Field
             name="💰 Gesamt"
-            value={<span className="text-[16px] font-bold text-white">{formatMoney(ticket.total)}</span>}
+            value={<span className="text-[16px] font-bold text-white">{formatMoney(pay.total)}</span>}
           />
-          <Field name="🛡️ Verkäufer" value={<Mention>{PRODUCT.seller}</Mention>} />
-          <Field name="👤 Zahlungsempfänger" value={<Code>{ticket.recipient}</Code>} />
+          <Field name="👤 Zahlungsempfänger" value={<Code>y3zz</Code>} />
           <Field
             name="Zahlungsbefehl — bitte kopieren"
             value={
@@ -797,7 +843,9 @@ function TicketView({
         </Embed>
         <DiscordButton onClick={() => onCopy(cmd)}>{copied ? "Kopiert" : "Befehl kopieren"}</DiscordButton>
         <DiscordButton variant="primary">Übernehmen</DiscordButton>
-        <DiscordButton variant="danger">Schließen</DiscordButton>
+        <DiscordButton variant="danger" onClick={() => setClosed(true)}>
+          Schließen
+        </DiscordButton>
       </DiscordMessage>
     );
   }
@@ -810,9 +858,27 @@ function TicketView({
       <Embed color="#23a559" footer="FriendsWithMoney · Ticket-System">
         <p className="text-[16px] font-semibold text-white">{ticket.title}</p>
         <p className="mt-2">Hallo, beschreibe bitte dein Anliegen. Das Team wird sich so schnell wie möglich bei dir melden.</p>
+        <p className="mt-2 text-[#b5bac1]">Noch kein Preis — Team: Betrag setzen, dann erscheint /pay y3zz.</p>
       </Embed>
-      <DiscordButton variant="primary">Übernehmen</DiscordButton>
-      <DiscordButton variant="danger">Schließen</DiscordButton>
+      <div className="mt-2 flex max-w-[520px] flex-wrap items-center gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          className="w-28 rounded bg-[#1e1f22] px-2 py-1.5 text-sm text-white"
+          aria-label="Preis"
+        />
+        <DiscordButton
+          onClick={() => {
+            const amount = parseDraft(draft);
+            if (!Number.isFinite(amount) || amount <= 0) return;
+            setPay({ total: amount, unit: amount, product: ticket.title, qty: 1 });
+          }}
+        >
+          Preis festlegen
+        </DiscordButton>
+        <DiscordButton variant="primary">Übernehmen</DiscordButton>
+        <DiscordButton variant="danger">Schließen</DiscordButton>
+      </div>
     </DiscordMessage>
   );
 }

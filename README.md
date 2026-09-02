@@ -6,14 +6,8 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 
 ## Was der Bot kann
 
-- **Tickets** — Panel mit Dropdown (Support, Clan-Fight, Verify, …). Ein offenes Support-Ticket pro Person. Team kann übernehmen, User hinzufügen, schließen.
-- **Buy-Panels** — Produkt mit Preis, Verkäufer, Bild und grünem Kauf-Button. Klick öffnet ein privates Ticket, rechnet `Menge × Preis` und postet:
-
-  ```
-  /pay FriendsWithMny 18000000
-  ```
-
-  Der Empfänger ist der Minecraft-Name, den du am Produkt hinterlegst — nicht irgendein Fake-Account.
+- **Tickets** — Panel mit Dropdown (Support, Clan-Fight, …). Ein offenes Support-Ticket pro Person. Ist **kein Preis** gesetzt, legt das Team ihn mit **Preis festlegen** oder `/ticket preis` fest — danach erscheint `/pay y3zz <betrag>`.
+- **Buy-Panels** — Produkt mit Preis, Verkäufer, Bild und grünem Kauf-Button. Klick öffnet ein privates Ticket, rechnet `Menge × Preis` und postet z. B. `/pay y3zz 18000000`. Nach dem Schließen bekommt der Käufer eine **DM mit Sternen**; die Bewertung wird als Vouch gepostet (Kanal von `/vouch-panel` oder `/setup setzen vouch_kanal`).
 - **Mehrere Panels** — `/ticket-panel` und `/buy-panel` so oft senden, wie du willst, in beliebige Kanäle.
 - **Texte senden** — `/sagen` (Klartext oder Embed) und `/embed` (Farbe, Bild, Footer).
 - **Giveaways** — Start mit Dauer (`7h`, `30m`, `1d`), Teilnehmen-Button, automatische Auslosung, Reroll.
@@ -76,9 +70,13 @@ npm run bot
 | `/embed` | Farbiges Embed mit Titel, Bild, Footer |
 | `/ticket-kategorie hinzufuegen` | Anliegen für das Ticket-Dropdown |
 | `/ticket-panel` | Ticket-Panel senden (mehrfach möglich) |
+| `/ticket preis` | Im Ticket ohne Preis den Betrag setzen → `/pay y3zz` |
 | `/produkt erstellen` | Name, Preis, Verkäufer, Minecraft-Empfänger, Bild |
 | `/buy-panel` | Kauf-Panel für eine Produkt-ID senden |
-| `/spawner setzen` | Ankauf-/Verkaufspreis (z. B. `13,1M` oder `STOP`) |
+| `/spawner hinzufuegen` | Neuen Spawner (Preise + Emoji) |
+| `/spawner setzen` | Preise ändern (`13,1M` oder `STOP`), optional Emoji |
+| `/spawner emoji` / `entfernen` | Emoji setzen oder Spawner löschen |
+| `/spawner rolle` | Eigene Support-Rolle nur für Spawner-Tickets |
 | `/spawner-panel` | Spawner An-/Verkauf mit zwei Buttons |
 | `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
 | `/clan plaetze` | Maximum setzen (z. B. 30) |
@@ -93,7 +91,7 @@ npm run bot
 ### Beispiel Shop
 
 ```
-/produkt erstellen name:Thorfinn von Vinland Saga preis:6000000 verkaeufer:@Du empfaenger:FriendsWithMny sku:#7 button:Map-Art kaufen
+/produkt erstellen name:Thorfinn von Vinland Saga preis:6000000 verkaeufer:@Du empfaenger:y3zz sku:#7 button:Map-Art kaufen
 /buy-panel produkt_id:1 listing:True
 ```
 
@@ -101,7 +99,7 @@ Im geöffneten Ticket steht z. B. bei Menge 3:
 
 - Einzelpreis **$6.000.000**
 - Gesamt **$18.000.000**
-- Befehl `/pay FriendsWithMny 18000000`
+- Befehl `/pay y3zz 18000000`
 
 ### Clan-Bewerbung
 
@@ -114,6 +112,10 @@ Im geöffneten Ticket steht z. B. bei Menge 3:
 ```
 
 Das Panel zeigt z. B. **4/30 Plätze**. Eine Bewerbung ändert die Zahl **nicht**. Erst `/clan annehmen` (oder der Button im Ticket) erhöht auf **5/30**. Dieselbe Person ein zweites Mal annehmen ändert nichts. `/clan kick` gibt den Platz wieder frei.
+
+Nach einem Kauf (Ticket schließen) schickt der Bot dem Käufer eine **DM** mit 1–5 Sternen. Die Bewertung landet im Vouch-Kanal.
+
+Spawner-Team: `/spawner rolle` setzt eine eigene Rolle, die in Spawner-Tickets gepingt wird und Zugriff hat — unabhängig vom normalen Support.
 
 ## Web-Vorschau
 

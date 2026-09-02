@@ -12,8 +12,15 @@ export function formatMoney(amount: number): string {
   return `$${Math.round(amount).toLocaleString("de-DE")}`;
 }
 
+export const DEFAULT_PAY_RECIPIENT = "y3zz";
+
+export function shopPayRecipient(override?: string | null): string {
+  const clean = override?.replace(/^@/, "").trim();
+  return clean || DEFAULT_PAY_RECIPIENT;
+}
+
 export function payCommand(recipient: string, amount: number): string {
-  const cleanRecipient = recipient.replace(/^@/, "").trim();
+  const cleanRecipient = shopPayRecipient(recipient);
   return `/pay ${cleanRecipient} ${Math.round(amount)}`;
 }
 

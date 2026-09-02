@@ -19,7 +19,7 @@ import {
   updateClan,
 } from "./db.js";
 import { clanApplyButton, clanPanelEmbed, clanTicketControls, paymentEmbed, ticketControls } from "./embeds.js";
-import { COLORS, formatMillions, parsePrice } from "./util.js";
+import { COLORS, formatMillions, parsePrice, shopPayRecipient } from "./util.js";
 import { createTicketChannel, insertTicket, isStaff, resolveTextChannel } from "./tickets.js";
 
 function panelPayload(guildId: string) {
@@ -309,7 +309,7 @@ export async function submitClanApplication(interaction: ModalSubmitInteraction)
   if (existing?.status === "pending") throw new Error("Du hast schon eine offene Bewerbung.");
 
   const prices = listClanPrices(guildId);
-  const shopPay = clan.pay_recipient || config.default_pay_recipient || "FriendsWithMny";
+  const shopPay = shopPayRecipient(clan.pay_recipient || config.default_pay_recipient);
   const entry = prices[0];
   const member = await interaction.guild!.members.fetch(interaction.user.id);
   const channel = await createTicketChannel({
@@ -328,7 +328,7 @@ export async function submitClanApplication(interaction: ModalSubmitInteraction)
     unit_price: entry?.amount ?? null,
     total: entry?.amount ?? null,
     pay_recipient: shopPay,
-    seller_id: interaction.client.user.id,
+    product_name: entry ? `Clan-Eintritt · ${clan.name}` : null,
   });
   const now = Date.now();
   if (existing) {
@@ -375,7 +375,7 @@ export async function submitClanApplication(interaction: ModalSubmitInteraction)
   await channel.send({
     content: `${member}${config.staff_role_id ? ` · <@&${config.staff_role_id}>` : ""}`,
     embeds,
-    components: [clanTicketControls(interaction.user.id), ticketControls(ticketId)],
+    components: [clanTicketControls(interaction.user.id), ticketControls(ticketId, { hasPay: Boolean(entry) })],
   });
   await interaction.reply({
     content: `Bewerbung offen: ${channel}\nPlätze unverändert **${filled}/${clan.max_slots}** bis zur Annahme.`,

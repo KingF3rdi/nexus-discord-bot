@@ -23,7 +23,12 @@ export async function resolveTextChannel(
   return ch as TextChannel;
 }
 
-export async function staffOverwrites(guild: Guild, config: GuildConfig, userId: string): Promise<OverwriteResolvable[]> {
+export async function staffOverwrites(
+  guild: Guild,
+  config: GuildConfig,
+  userId: string,
+  extraRoleIds: string[] = [],
+): Promise<OverwriteResolvable[]> {
   const overwrites: OverwriteResolvable[] = [
     {
       id: guild.id,
@@ -40,9 +45,10 @@ export async function staffOverwrites(guild: Guild, config: GuildConfig, userId:
       ],
     },
   ];
-  if (config.staff_role_id) {
+  const roleIds = [...new Set([config.staff_role_id, ...extraRoleIds].filter(Boolean))] as string[];
+  for (const roleId of roleIds) {
     overwrites.push({
-      id: config.staff_role_id,
+      id: roleId,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
@@ -77,6 +83,7 @@ export async function createTicketChannel(opts: {
   member: GuildMember;
   prefix: string;
   topic: string;
+  extraStaffRoleIds?: string[];
 }) {
   const parent = opts.config.ticket_category_id ?? undefined;
   return opts.guild.channels.create({
@@ -84,7 +91,12 @@ export async function createTicketChannel(opts: {
     type: ChannelType.GuildText,
     parent,
     topic: opts.topic,
-    permissionOverwrites: await staffOverwrites(opts.guild, opts.config, opts.member.id),
+    permissionOverwrites: await staffOverwrites(
+      opts.guild,
+      opts.config,
+      opts.member.id,
+      opts.extraStaffRoleIds ?? [],
+    ),
   });
 }
 
@@ -117,13 +129,14 @@ export function insertTicket(row: {
   total?: number | null;
   pay_recipient?: string | null;
   seller_id?: string | null;
+  product_name?: string | null;
 }) {
   const result = db
     .prepare(
       `INSERT INTO tickets (
         guild_id, channel_id, user_id, type, category_id, service_id, product_id,
-        quantity, unit_price, total, pay_recipient, seller_id, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+        quantity, unit_price, total, pay_recipient, seller_id, product_name, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
     )
     .run(
       row.guild_id,
@@ -138,6 +151,7 @@ export function insertTicket(row: {
       row.total ?? null,
       row.pay_recipient ?? null,
       row.seller_id ?? null,
+      row.product_name ?? null,
       Date.now(),
     );
   return Number(result.lastInsertRowid);
@@ -159,13 +173,27 @@ export function getTicketByChannel(channelId: string) {
         total: number | null;
         pay_recipient: string | null;
         seller_id: string | null;
+        product_name: string | null;
         status: string;
         claimed_by: string | null;
       }
     | undefined;
 }
 
-export function isStaff(member: GuildMember | APIInteractionGuildMember | null, config: GuildConfig) {
+export function hasStaffRole(
+  member: GuildMember | APIInteractionGuildMember | null,
+  roleId: string | null | undefined,
+) {
+  if (!member || !roleId) return false;
+  if ("cache" in member.roles) return member.roles.cache.has(roleId);
+  return member.roles.includes(roleId);
+}
+
+export function isStaff(
+  member: GuildMember | APIInteractionGuildMember | null,
+  config: GuildConfig,
+  ticketType?: string | null,
+) {
   if (!member) return false;
   const perms = member.permissions;
   const canManage =
@@ -173,9 +201,16 @@ export function isStaff(member: GuildMember | APIInteractionGuildMember | null, 
       ? (BigInt(perms) & PermissionFlagsBits.ManageGuild) === PermissionFlagsBits.ManageGuild
       : perms.has(PermissionFlagsBits.ManageGuild);
   if (canManage) return true;
-  if (!config.staff_role_id) return false;
-  if ("cache" in member.roles) return member.roles.cache.has(config.staff_role_id);
-  return member.roles.includes(config.staff_role_id);
+  if (hasStaffRole(member, config.staff_role_id)) return true;
+  if (ticketType?.startsWith("spawner") && hasStaffRole(member, config.spawner_staff_role_id)) return true;
+  return false;
+}
+
+export function staffMention(config: GuildConfig, ticketType?: string | null) {
+  if (ticketType?.startsWith("spawner") && config.spawner_staff_role_id) {
+    return ` · <@&${config.spawner_staff_role_id}>`;
+  }
+  return config.staff_role_id ? ` · <@&${config.staff_role_id}>` : "";
 }
 
 export { getGuild };

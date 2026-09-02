@@ -44,7 +44,9 @@ import {
   formatMoney,
   parseColor,
   parseDuration,
+  parsePrice,
   payCommand,
+  shopPayRecipient,
   shortId,
   stars,
 } from "./util.js";
@@ -56,10 +58,12 @@ import {
   insertTicket,
   isStaff,
   resolveTextChannel,
+  staffMention,
 } from "./tickets.js";
 import { helpText } from "./commands.js";
 import { cmdSpawner, cmdSpawnerPanel, openSpawnerPicker, openSpawnerQtyModal, openSpawnerTicket } from "./spawners.js";
 import { cmdClan, cmdClanPanel, handleClanDecision, openClanApplyModal, submitClanApplication } from "./clan.js";
+import { handleVouchDmButton, sendVouchDm } from "./vouch-dm.js";
 
 type AnyInteraction =
   | ChatInputCommandInteraction
@@ -168,8 +172,10 @@ async function cmdSetup(interaction: ChatInputCommandInteraction) {
             { name: "Footer", value: g.footer, inline: true },
             { name: "Ticket-Kategorie", value: g.ticket_category_id ? `<#${g.ticket_category_id}>` : "—", inline: true },
             { name: "Team-Rolle", value: g.staff_role_id ? `<@&${g.staff_role_id}>` : "—", inline: true },
+            { name: "Spawner-Rolle", value: g.spawner_staff_role_id ? `<@&${g.spawner_staff_role_id}>` : "—", inline: true },
             { name: "Log-Kanal", value: g.log_channel_id ? `<#${g.log_channel_id}>` : "—", inline: true },
-            { name: "Pay-Empfänger", value: g.default_pay_recipient ? `\`${g.default_pay_recipient}\`` : "—", inline: true },
+            { name: "Vouch-Kanal", value: g.vouch_channel_id ? `<#${g.vouch_channel_id}>` : "—", inline: true },
+            { name: "Pay-Empfänger", value: `\`${shopPayRecipient(g.default_pay_recipient)}\``, inline: true },
           ),
       ],
       flags: 64,
@@ -179,14 +185,18 @@ async function cmdSetup(interaction: ChatInputCommandInteraction) {
   const name = interaction.options.getString("name");
   const category = interaction.options.getChannel("ticket_kategorie");
   const role = interaction.options.getRole("team_rolle");
+  const spawnerRole = interaction.options.getRole("spawner_rolle");
   const log = interaction.options.getChannel("log_kanal");
+  const vouchCh = interaction.options.getChannel("vouch_kanal");
   const pay = interaction.options.getString("pay_empfaenger");
   const footerText = interaction.options.getString("footer");
   updateGuild(interaction.guildId, {
     ...(name ? { community_name: name } : {}),
     ...(category ? { ticket_category_id: category.id } : {}),
     ...(role ? { staff_role_id: role.id } : {}),
+    ...(spawnerRole ? { spawner_staff_role_id: spawnerRole.id } : {}),
     ...(log ? { log_channel_id: log.id } : {}),
+    ...(vouchCh ? { vouch_channel_id: vouchCh.id } : {}),
     ...(pay ? { default_pay_recipient: pay } : {}),
     ...(footerText ? { footer: footerText } : {}),
   });
@@ -546,11 +556,17 @@ async function cmdVouchPanel(interaction: ChatInputCommandInteraction) {
     .prepare("SELECT COUNT(DISTINCT buyer_id) + COUNT(DISTINCT seller_id) AS c FROM vouches WHERE guild_id = ?")
     .get(interaction.guildId) as { c: number };
   const channel = await resolveTextChannel(interaction);
-  await channel.send({
+  const msg = await channel.send({
     embeds: [vouchLookupEmbed(config, profiles.c || 0)],
     components: [vouchUserSelect()],
   });
-  await interaction.reply({ content: `Vouch-Panel in ${channel} gesendet.`, flags: 64 });
+  updateGuild(interaction.guildId, { vouch_channel_id: channel.id });
+  db.prepare("INSERT INTO panels (guild_id, type, channel_id, message_id) VALUES (?, 'vouch', ?, ?)").run(
+    interaction.guildId,
+    channel.id,
+    msg.id,
+  );
+  await interaction.reply({ content: `Vouch-Panel in ${channel} gesendet. Kauf-Bewertungen per DM landen hier.`, flags: 64 });
 }
 
 async function cmdPay(interaction: ChatInputCommandInteraction) {
@@ -584,14 +600,23 @@ async function cmdTicket(interaction: ChatInputCommandInteraction) {
   const config = getGuild(interaction.guildId);
   const member = interaction.member;
   if (!member || typeof member === "string") throw new Error("Mitglied nicht gefunden.");
+  if (sub === "preis") {
+    if (!isStaff(member, config, ticket.type)) throw new Error("Nur das Team kann einen Preis setzen.");
+    const amount = parsePrice(interaction.options.getString("betrag", true));
+    if (amount == null || amount <= 0) throw new Error("Bitte einen gültigen Betrag angeben (kein STOP).");
+    const qty = interaction.options.getInteger("menge") ?? ticket.quantity ?? 1;
+    const product = interaction.options.getString("produkt") ?? ticket.product_name ?? "Ticket";
+    await applyTicketPrice(interaction, ticket.id, amount, product, qty);
+    return;
+  }
   if (sub === "schliessen") {
-    if (ticket.user_id !== interaction.user.id && !isStaff(member, config)) {
+    if (ticket.user_id !== interaction.user.id && !isStaff(member, config, ticket.type)) {
       throw new Error("Nur das Team oder der Ticket-Ersteller kann schließen.");
     }
     await closeTicket(interaction, ticket.id);
     return;
   }
-  if (!isStaff(member, config)) throw new Error("Nur das Team kann User hinzufügen.");
+  if (!isStaff(member, config, ticket.type)) throw new Error("Nur das Team kann User hinzufügen.");
   const user = interaction.options.getUser("user", true);
   const channel = interaction.channel;
   if (!channel || !channel.isTextBased() || channel.isDMBased()) throw new Error("Kein Ticket-Kanal.");
@@ -602,9 +627,13 @@ async function cmdTicket(interaction: ChatInputCommandInteraction) {
 }
 
 export async function handleButton(interaction: ButtonInteraction) {
-  if (!interaction.inCachedGuild()) return;
-  const [kind, action, rawId] = interaction.customId.split(":");
   try {
+    if (interaction.customId.startsWith("vouchdm:")) {
+      await handleVouchDmButton(interaction);
+      return;
+    }
+    if (!interaction.inCachedGuild()) return;
+    const [kind, action, rawId] = interaction.customId.split(":");
     if (kind === "buy" && action) {
       await openBuyModal(interaction, Number(action));
       return;
@@ -627,6 +656,10 @@ export async function handleButton(interaction: ButtonInteraction) {
     }
     if (kind === "ticket" && action === "pay") {
       await repostPay(interaction, Number(rawId));
+      return;
+    }
+    if (kind === "ticket" && action === "setprice") {
+      await openSetPriceModal(interaction, Number(rawId));
       return;
     }
     if (kind === "clan" && action === "apply") {
@@ -719,6 +752,14 @@ export async function handleModal(interaction: import("discord.js").ModalSubmitI
     }
     if (interaction.customId === "clan:apply") {
       await submitClanApplication(interaction);
+      return;
+    }
+    if (interaction.customId.startsWith("ticket:setprice:")) {
+      const ticketId = Number(interaction.customId.split(":")[2]);
+      const amount = parsePrice(interaction.fields.getTextInputValue("betrag"));
+      if (amount == null || amount <= 0) throw new Error("Bitte einen gültigen Betrag angeben (kein STOP).");
+      const product = interaction.fields.getTextInputValue("produkt").trim() || "Ticket";
+      await applyTicketPrice(interaction, ticketId, amount, product, 1);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Fehler.";
@@ -784,9 +825,10 @@ async function openBuyTicket(
     total,
     pay_recipient: product.pay_recipient,
     seller_id: product.seller_id,
+    product_name: product.name,
   });
   await channel.send({
-    content: `${member} · <@${product.seller_id}>${config.staff_role_id ? ` · <@&${config.staff_role_id}>` : ""}`,
+    content: `${member} · <@${product.seller_id}>${staffMention(config)}`,
     embeds: [
       paymentEmbed({
         config,
@@ -800,7 +842,7 @@ async function openBuyTicket(
         sku: product.sku,
       }),
     ],
-    components: [ticketControls(ticketId)],
+    components: [ticketControls(ticketId, { hasPay: true })],
   });
   await interaction.reply({
     content: `Dein Kauf-Ticket wurde geöffnet: ${channel}\nGesamt: **${formatMoney(total)}**`,
@@ -832,17 +874,17 @@ async function openSupportTicket(interaction: StringSelectMenuInteraction, categ
     category_id: category.id,
   });
   await channel.send({
-    content: `${member}${config.staff_role_id ? ` · <@&${config.staff_role_id}>` : ""}`,
+    content: `${member}${staffMention(config)}`,
     embeds: [
       new EmbedBuilder()
         .setColor(COLORS.green)
         .setTitle(`${category.emoji} ${category.name}`)
         .setDescription(
-          `Hallo ${member}, beschreibe bitte dein Anliegen.\nDas Team wird sich so schnell wie möglich bei dir melden.\n\n${category.description}`,
+          `Hallo ${member}, beschreibe bitte dein Anliegen.\nDas Team wird sich so schnell wie möglich bei dir melden.\n\n${category.description}\n\nNoch kein Preis hinterlegt — ein Teammitglied setzt ihn bei Bedarf mit **Preis festlegen** oder \`/ticket preis\`. Danach erscheint \`/pay y3zz\`.`,
         )
         .setFooter({ text: footer(config, "Ticket-System") }),
     ],
-    components: [ticketControls(ticketId)],
+    components: [ticketControls(ticketId, { hasPay: false })],
   });
   await interaction.reply({ content: `Ticket geöffnet: ${channel}`, flags: 64 });
   await interaction.message.edit({ components: interaction.message.components }).catch(() => undefined);
@@ -872,17 +914,93 @@ async function openServiceTicket(interaction: StringSelectMenuInteraction, servi
     service_id: service.id,
   });
   await channel.send({
-    content: `${member}${config.staff_role_id ? ` · <@&${config.staff_role_id}>` : ""}`,
+    content: `${member}${staffMention(config)}`,
     embeds: [
       new EmbedBuilder()
         .setColor(COLORS.green)
         .setTitle(`${service.emoji} ${service.name}`)
-        .setDescription(`Hallo ${member},\n${service.description}\n\nBitte beschreibe, was gebaut oder erledigt werden soll.`)
+        .setDescription(`Hallo ${member},\n${service.description}\n\nBitte beschreibe, was gebaut oder erledigt werden soll.\n\nKein Preis hinterlegt — das Team setzt ihn mit **Preis festlegen**.`)
         .setFooter({ text: footer(config, "Service-System") }),
     ],
-    components: [ticketControls(ticketId)],
+    components: [ticketControls(ticketId, { hasPay: false })],
   });
   await interaction.reply({ content: `Service-Ticket geöffnet: ${channel}`, flags: 64 });
+}
+
+async function openSetPriceModal(interaction: ButtonInteraction, ticketId: number) {
+  const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(ticketId) as
+    | { status: string; type: string; total: number | null }
+    | undefined;
+  if (!ticket || ticket.status !== "open") throw new Error("Ticket ist geschlossen.");
+  const config = getGuild(interaction.guildId);
+  if (!isStaff(interaction.member, config, ticket.type)) throw new Error("Nur das Team kann einen Preis setzen.");
+  const modal = new ModalBuilder().setCustomId(`ticket:setprice:${ticketId}`).setTitle("Preis festlegen");
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId("betrag")
+        .setLabel("Betrag (z. B. 5,0M oder 2500000)")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(20),
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId("produkt")
+        .setLabel("Bezeichnung (optional)")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(80)
+        .setPlaceholder("z. B. Support, Map, Extra"),
+    ),
+  );
+  await interaction.showModal(modal);
+}
+
+async function applyTicketPrice(
+  interaction: ChatInputCommandInteraction | import("discord.js").ModalSubmitInteraction,
+  ticketId: number,
+  amount: number,
+  productName: string,
+  quantity: number,
+) {
+  const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(ticketId) as
+    | {
+        id: number;
+        guild_id: string;
+        user_id: string;
+        type: string;
+        status: string;
+        seller_id: string | null;
+      }
+    | undefined;
+  if (!ticket || ticket.status !== "open") throw new Error("Ticket ist geschlossen.");
+  const config = getGuild(ticket.guild_id);
+  const payTo = shopPayRecipient(config.default_pay_recipient);
+  const total = amount * quantity;
+  db.prepare(
+    `UPDATE tickets SET unit_price = ?, quantity = ?, total = ?, pay_recipient = ?, product_name = ?,
+     seller_id = COALESCE(seller_id, ?) WHERE id = ?`,
+  ).run(amount, quantity, total, payTo, productName, interaction.user.id, ticketId);
+  const embed = paymentEmbed({
+    config,
+    productName,
+    quantity,
+    unitPrice: amount,
+    total,
+    sellerId: ticket.seller_id ?? interaction.user.id,
+    payRecipient: payTo,
+    buyerId: ticket.user_id,
+    sku: "Ticket",
+  });
+  if (interaction.isModalSubmit() && interaction.isFromMessage()) {
+    await interaction.update({
+      components: [ticketControls(ticketId, { hasPay: true })],
+    });
+    await interaction.followUp({ embeds: [embed] });
+    return;
+  }
+  await interaction.reply({ embeds: [embed] });
 }
 
 async function closeTicket(
@@ -890,12 +1008,36 @@ async function closeTicket(
   ticketId: number,
 ) {
   const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(ticketId) as
-    | { id: number; channel_id: string; status: string; user_id: string }
+    | {
+        id: number;
+        guild_id: string;
+        channel_id: string;
+        status: string;
+        user_id: string;
+        type: string;
+        quantity: number;
+        total: number | null;
+        seller_id: string | null;
+        product_id: number | null;
+        product_name: string | null;
+      }
     | undefined;
   if (!ticket || ticket.status !== "open") throw new Error("Ticket ist bereits geschlossen.");
+  const config = getGuild(ticket.guild_id);
+  const member = interaction.member;
+  if (ticket.user_id !== interaction.user.id && !isStaff(member && typeof member !== "string" ? member : null, config, ticket.type)) {
+    throw new Error("Nur das Team oder der Ticket-Ersteller kann schließen.");
+  }
   db.prepare("UPDATE tickets SET status = 'closed' WHERE id = ?").run(ticketId);
+  const asked = await sendVouchDm(interaction.client, ticket);
+  const extra =
+    asked === "sent"
+      ? " Der Käufer erhält eine DM zur Bewertung (Sterne → Vouch)."
+      : asked === "failed"
+        ? " Bewertung per DM war nicht möglich (DMs geschlossen?)."
+        : "";
   await interaction.reply({
-    embeds: [warningEmbed("Ticket wird in 5 Sekunden geschlossen.", COLORS.yellow)],
+    embeds: [warningEmbed(`Ticket wird in 5 Sekunden geschlossen.${extra}`, COLORS.yellow)],
   });
   setTimeout(() => {
     interaction.channel?.delete("Ticket geschlossen").catch(() => undefined);
@@ -903,8 +1045,9 @@ async function closeTicket(
 }
 
 async function claimTicket(interaction: ButtonInteraction, ticketId: number) {
+  const ticket = db.prepare("SELECT type FROM tickets WHERE id = ?").get(ticketId) as { type: string } | undefined;
   const config = getGuild(interaction.guildId);
-  if (!isStaff(interaction.member, config)) throw new Error("Nur das Team kann Tickets übernehmen.");
+  if (!isStaff(interaction.member, config, ticket?.type)) throw new Error("Nur das Team kann Tickets übernehmen.");
   db.prepare("UPDATE tickets SET claimed_by = ? WHERE id = ?").run(interaction.user.id, ticketId);
   await interaction.reply({ content: `${interaction.user} hat das Ticket übernommen.` });
 }

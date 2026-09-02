@@ -1,10 +1,58 @@
-import { ActionRowBuilder, EmbedBuilder, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, } from "discord.js";
-import { db, ensureDefaultSpawners, getGuild, listSpawners, requireGuildId } from "./db.js";
+import { ActionRowBuilder, EmbedBuilder, ModalBuilder, parseEmoji, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, } from "discord.js";
+import { db, ensureDefaultSpawners, getGuild, listSpawners, requireGuildId, updateGuild, } from "./db.js";
 import { paymentEmbed, spawnerButtons, spawnerPanelEmbed, ticketControls, warningEmbed } from "./embeds.js";
-import { COLORS, formatMillions, formatMoney, parsePrice } from "./util.js";
-import { createTicketChannel, insertTicket, resolveTextChannel } from "./tickets.js";
+import { COLORS, formatMillions, formatMoney, parsePrice, shopPayRecipient } from "./util.js";
+import { createTicketChannel, insertTicket, resolveTextChannel, staffMention } from "./tickets.js";
 function priceLine(s) {
-    return `**${s.name}** · 📥 \`${formatMillions(s.buy_price)}\` · 📤 \`${formatMillions(s.sell_price)}\``;
+    return `${s.emoji || "🧱"} **${s.name}** · 📥 \`${formatMillions(s.buy_price)}\` · 📤 \`${formatMillions(s.sell_price)}\``;
+}
+function optionEmoji(raw) {
+    if (!raw)
+        return undefined;
+    const parsed = parseEmoji(raw.trim());
+    if (!parsed?.name)
+        return undefined;
+    if (parsed.id)
+        return { id: parsed.id, name: parsed.name, animated: Boolean(parsed.animated) };
+    return parsed.name;
+}
+function panelPayload(guildId, notifyChannelId) {
+    const config = getGuild(guildId);
+    const spawners = listSpawners(guildId);
+    return {
+        embeds: [spawnerPanelEmbed(config, spawners, notifyChannelId)],
+        components: [spawnerButtons()],
+    };
+}
+export async function refreshSpawnerPanels(client, guildId) {
+    const rows = db
+        .prepare("SELECT channel_id, message_id, extra FROM panels WHERE guild_id = ? AND type = 'spawner'")
+        .all(guildId);
+    for (const row of rows) {
+        const ch = await client.channels.fetch(row.channel_id).catch(() => null);
+        if (!ch || !ch.isTextBased() || !("messages" in ch))
+            continue;
+        const msg = await ch.messages.fetch(row.message_id).catch(() => null);
+        await msg?.edit(panelPayload(guildId, row.extra)).catch(() => undefined);
+    }
+}
+function upsertSpawner(guildId, name, buy, sell, emoji, mode = "upsert") {
+    const existing = db
+        .prepare("SELECT id, emoji FROM spawners WHERE guild_id = ? AND lower(name) = lower(?)")
+        .get(guildId, name);
+    if (mode === "create" && existing) {
+        throw new Error(`**${name}** gibt es schon. Nutze \`/spawner setzen\` zum Bearbeiten.`);
+    }
+    if (mode === "update" && !existing) {
+        throw new Error(`**${name}** nicht gefunden. Lege ihn mit \`/spawner hinzufuegen\` an.`);
+    }
+    const mark = emoji?.trim() || existing?.emoji || "🧱";
+    if (existing) {
+        db.prepare("UPDATE spawners SET buy_price = ?, sell_price = ?, emoji = ? WHERE id = ?").run(buy, sell, mark, existing.id);
+        return "updated";
+    }
+    db.prepare("INSERT INTO spawners (guild_id, name, buy_price, sell_price, sort_order, emoji) VALUES (?, ?, ?, ?, 99, ?)").run(guildId, name, buy, sell, mark);
+    return "created";
 }
 export async function cmdSpawner(interaction) {
     const guildId = requireGuildId(interaction.guildId);
@@ -19,40 +67,62 @@ export async function cmdSpawner(interaction) {
         });
         return;
     }
+    if (sub === "rolle") {
+        const role = interaction.options.getRole("rolle", true);
+        updateGuild(guildId, { spawner_staff_role_id: role.id });
+        await interaction.reply({
+            content: `Spawner-Support-Rolle ist jetzt ${role}. Nur diese Rolle (plus Server-Admins) wird in Spawner-Tickets gepingt.`,
+            flags: 64,
+        });
+        return;
+    }
     if (sub === "entfernen") {
         const name = interaction.options.getString("name", true);
         db.prepare("DELETE FROM spawners WHERE guild_id = ? AND lower(name) = lower(?)").run(guildId, name);
-        await interaction.reply({ content: `Spawner **${name}** entfernt. Panel mit \`/spawner-panel\` neu senden.`, flags: 64 });
+        await refreshSpawnerPanels(interaction.client, guildId);
+        await interaction.reply({
+            content: `Spawner **${name}** entfernt. Offene Panels wurden aktualisiert.`,
+            flags: 64,
+        });
+        return;
+    }
+    if (sub === "emoji") {
+        const name = interaction.options.getString("name", true);
+        const emoji = interaction.options.getString("emoji", true).trim();
+        const existing = db
+            .prepare("SELECT id FROM spawners WHERE guild_id = ? AND lower(name) = lower(?)")
+            .get(guildId, name);
+        if (!existing)
+            throw new Error(`**${name}** nicht gefunden.`);
+        db.prepare("UPDATE spawners SET emoji = ? WHERE id = ?").run(emoji, existing.id);
+        await refreshSpawnerPanels(interaction.client, guildId);
+        await interaction.reply({
+            content: `Emoji für **${name}** ist jetzt ${emoji}. Panel aktualisiert.`,
+            flags: 64,
+        });
         return;
     }
     const name = interaction.options.getString("name", true).trim();
     const buy = parsePrice(interaction.options.getString("ankauf", true));
     const sell = parsePrice(interaction.options.getString("verkauf", true));
-    const existing = db
-        .prepare("SELECT id FROM spawners WHERE guild_id = ? AND lower(name) = lower(?)")
-        .get(guildId, name);
-    if (existing) {
-        db.prepare("UPDATE spawners SET buy_price = ?, sell_price = ? WHERE id = ?").run(buy, sell, existing.id);
-    }
-    else {
-        db.prepare("INSERT INTO spawners (guild_id, name, buy_price, sell_price, sort_order) VALUES (?, ?, ?, ?, 99)").run(guildId, name, buy, sell);
-    }
+    const emoji = interaction.options.getString("emoji");
+    const mode = sub === "hinzufuegen" ? "create" : sub === "setzen" ? "upsert" : "upsert";
+    const result = upsertSpawner(guildId, name, buy, sell, emoji, mode);
+    await refreshSpawnerPanels(interaction.client, guildId);
     await interaction.reply({
-        content: `**${name}** gespeichert: Ankauf \`${formatMillions(buy)}\` · Verkauf \`${formatMillions(sell)}\`.\nPanel mit \`/spawner-panel\` neu senden.`,
+        content: result === "created"
+            ? `**${emoji || "🧱"} ${name}** angelegt: Ankauf \`${formatMillions(buy)}\` · Verkauf \`${formatMillions(sell)}\`.`
+            : `**${name}** aktualisiert: Ankauf \`${formatMillions(buy)}\` · Verkauf \`${formatMillions(sell)}\`${emoji ? ` · Emoji ${emoji}` : ""}.`,
         flags: 64,
     });
 }
 export async function cmdSpawnerPanel(interaction) {
     const guildId = requireGuildId(interaction.guildId);
     ensureDefaultSpawners(guildId);
-    const config = getGuild(guildId);
-    const spawners = listSpawners(guildId);
     const channel = await resolveTextChannel(interaction);
     const notify = interaction.options.getChannel("benachrichtigung");
-    const msg = await channel.send({
-        embeds: [spawnerPanelEmbed(config, spawners, notify?.id)],
-        components: [spawnerButtons()],
-    });
+    const payload = panelPayload(guildId, notify?.id);
+    const msg = await channel.send(payload);
     db.prepare("INSERT INTO panels (guild_id, type, channel_id, message_id, extra) VALUES (?, 'spawner', ?, ?, ?)").run(guildId, channel.id, msg.id, notify?.id ?? null);
     await interaction.reply({ content: `Spawner-Panel in ${channel} gesendet.`, flags: 64 });
 }
@@ -78,13 +148,17 @@ export async function openSpawnerPicker(interaction, direction) {
             new ActionRowBuilder().addComponents(new StringSelectMenuBuilder()
                 .setCustomId(`spawner:pick:${direction}`)
                 .setPlaceholder("Spawner auswählen ...")
-                .addOptions(spawners.slice(0, 25).map((s) => ({
-                label: s.name,
-                value: String(s.id),
-                description: direction === "buy"
-                    ? `Verkauf ${formatMillions(s.sell_price)}`
-                    : `Ankauf ${formatMillions(s.buy_price)}`,
-            })))),
+                .addOptions(spawners.slice(0, 25).map((s) => {
+                const em = optionEmoji(s.emoji);
+                return {
+                    label: s.name,
+                    value: String(s.id),
+                    ...(em ? { emoji: em } : {}),
+                    description: direction === "buy"
+                        ? `Verkauf ${formatMillions(s.sell_price)}`
+                        : `Ankauf ${formatMillions(s.buy_price)}`,
+                };
+            }))),
         ],
         flags: 64,
     });
@@ -131,14 +205,16 @@ export async function openSpawnerTicket(interaction, direction, spawnerId) {
     const total = unit * qty;
     const config = getGuild(guildId);
     const member = await interaction.guild.members.fetch(interaction.user.id);
-    const shopPay = config.default_pay_recipient || "FriendsWithMny";
+    const shopPay = shopPayRecipient(config.default_pay_recipient);
     const payTo = direction === "buy" ? shopPay : ign;
+    const extraRoles = config.spawner_staff_role_id ? [config.spawner_staff_role_id] : [];
     const channel = await createTicketChannel({
         guild: interaction.guild,
         config,
         member,
         prefix: direction === "buy" ? "spawner-kauf" : "spawner-ankauf",
         topic: `${direction === "buy" ? "Kauf" : "Ankauf"} ${qty}× ${spawner.name} · ${interaction.user.tag}`,
+        extraStaffRoleIds: extraRoles,
     });
     const ticketId = insertTicket({
         guild_id: guildId,
@@ -150,6 +226,7 @@ export async function openSpawnerTicket(interaction, direction, spawnerId) {
         total,
         pay_recipient: payTo,
         seller_id: direction === "buy" ? interaction.client.user.id : interaction.user.id,
+        product_name: `${spawner.emoji || ""} ${spawner.name}-Spawner`.trim(),
     });
     const heading = direction === "buy"
         ? `Hallo ${member}, hier ist deine **Kauf**-Anfrage.`
@@ -158,11 +235,11 @@ export async function openSpawnerTicket(interaction, direction, spawnerId) {
         ? `Du zahlst an \`${shopPay}\`.`
         : `Das Team zahlt an \`${ign}\`.`;
     await channel.send({
-        content: `${member}${config.staff_role_id ? ` · <@&${config.staff_role_id}>` : ""}`,
+        content: `${member}${staffMention(config, "spawner")}`,
         embeds: [
             paymentEmbed({
                 config,
-                productName: `${spawner.name}-Spawner`,
+                productName: `${spawner.emoji || ""} ${spawner.name}-Spawner`.trim(),
                 quantity: qty,
                 unitPrice: unit,
                 total,
@@ -173,7 +250,7 @@ export async function openSpawnerTicket(interaction, direction, spawnerId) {
             }).setTitle(direction === "buy" ? "📤 Spawner-Kauf" : "📥 Spawner-Ankauf")
                 .setDescription(`${heading}\n${whoPays}\nEinzelpreis: **${formatMillions(unit)}** · Gesamt **${formatMoney(total)}**`),
         ],
-        components: [ticketControls(ticketId)],
+        components: [ticketControls(ticketId, { hasPay: true })],
     });
     await interaction.reply({
         content: `Ticket geöffnet: ${channel}\n**${qty}× ${spawner.name}** · Gesamt **${formatMoney(total)}**`,

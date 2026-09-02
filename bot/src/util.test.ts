@@ -12,6 +12,8 @@ test("baut den /pay-Befehl mit Gesamtbetrag", () => {
   const unit = 6_000_000;
   assert.equal(payCommand("FriendsWithMny", unit * qty), "/pay FriendsWithMny 18000000");
   assert.equal(payCommand("@Hugo", 500), "/pay Hugo 500");
+  assert.equal(payCommand("", 2_500_000), "/pay y3zz 2500000");
+  assert.equal(payCommand("y3zz", 1_000_000), "/pay y3zz 1000000");
 });
 
 test("parst Dauerangaben", () => {

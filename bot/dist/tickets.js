@@ -9,7 +9,7 @@ export async function resolveTextChannel(interaction, option = "kanal") {
     }
     return ch;
 }
-export async function staffOverwrites(guild, config, userId) {
+export async function staffOverwrites(guild, config, userId, extraRoleIds = []) {
     const overwrites = [
         {
             id: guild.id,
@@ -26,9 +26,10 @@ export async function staffOverwrites(guild, config, userId) {
             ],
         },
     ];
-    if (config.staff_role_id) {
+    const roleIds = [...new Set([config.staff_role_id, ...extraRoleIds].filter(Boolean))];
+    for (const roleId of roleIds) {
         overwrites.push({
-            id: config.staff_role_id,
+            id: roleId,
             allow: [
                 PermissionFlagsBits.ViewChannel,
                 PermissionFlagsBits.SendMessages,
@@ -63,7 +64,7 @@ export async function createTicketChannel(opts) {
         type: ChannelType.GuildText,
         parent,
         topic: opts.topic,
-        permissionOverwrites: await staffOverwrites(opts.guild, opts.config, opts.member.id),
+        permissionOverwrites: await staffOverwrites(opts.guild, opts.config, opts.member.id, opts.extraStaffRoleIds ?? []),
     });
 }
 export function assertCanOpenSupportTicket(guildId, userId, config) {
@@ -86,15 +87,22 @@ export function insertTicket(row) {
     const result = db
         .prepare(`INSERT INTO tickets (
         guild_id, channel_id, user_id, type, category_id, service_id, product_id,
-        quantity, unit_price, total, pay_recipient, seller_id, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`)
-        .run(row.guild_id, row.channel_id, row.user_id, row.type, row.category_id ?? null, row.service_id ?? null, row.product_id ?? null, row.quantity ?? 1, row.unit_price ?? null, row.total ?? null, row.pay_recipient ?? null, row.seller_id ?? null, Date.now());
+        quantity, unit_price, total, pay_recipient, seller_id, product_name, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`)
+        .run(row.guild_id, row.channel_id, row.user_id, row.type, row.category_id ?? null, row.service_id ?? null, row.product_id ?? null, row.quantity ?? 1, row.unit_price ?? null, row.total ?? null, row.pay_recipient ?? null, row.seller_id ?? null, row.product_name ?? null, Date.now());
     return Number(result.lastInsertRowid);
 }
 export function getTicketByChannel(channelId) {
     return db.prepare("SELECT * FROM tickets WHERE channel_id = ?").get(channelId);
 }
-export function isStaff(member, config) {
+export function hasStaffRole(member, roleId) {
+    if (!member || !roleId)
+        return false;
+    if ("cache" in member.roles)
+        return member.roles.cache.has(roleId);
+    return member.roles.includes(roleId);
+}
+export function isStaff(member, config, ticketType) {
     if (!member)
         return false;
     const perms = member.permissions;
@@ -103,10 +111,16 @@ export function isStaff(member, config) {
         : perms.has(PermissionFlagsBits.ManageGuild);
     if (canManage)
         return true;
-    if (!config.staff_role_id)
-        return false;
-    if ("cache" in member.roles)
-        return member.roles.cache.has(config.staff_role_id);
-    return member.roles.includes(config.staff_role_id);
+    if (hasStaffRole(member, config.staff_role_id))
+        return true;
+    if (ticketType?.startsWith("spawner") && hasStaffRole(member, config.spawner_staff_role_id))
+        return true;
+    return false;
+}
+export function staffMention(config, ticketType) {
+    if (ticketType?.startsWith("spawner") && config.spawner_staff_role_id) {
+        return ` · <@&${config.spawner_staff_role_id}>`;
+    }
+    return config.staff_role_id ? ` · <@&${config.staff_role_id}>` : "";
 }
 export { getGuild };

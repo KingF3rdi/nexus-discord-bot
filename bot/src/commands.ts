@@ -20,11 +20,15 @@ export const commands = [
           o.setName("ticket_kategorie").setDescription("Kategorie für Ticket-Kanäle").addChannelTypes(ChannelType.GuildCategory),
         )
         .addRoleOption((o) => o.setName("team_rolle").setDescription("Team-/Support-Rolle"))
+        .addRoleOption((o) => o.setName("spawner_rolle").setDescription("Eigene Support-Rolle nur für Spawner-Tickets"))
         .addChannelOption((o) =>
           o.setName("log_kanal").setDescription("Log-Kanal").addChannelTypes(ChannelType.GuildText),
         )
+        .addChannelOption((o) =>
+          o.setName("vouch_kanal").setDescription("Kanal für Bewertungen nach dem Kauf (DM)").addChannelTypes(ChannelType.GuildText),
+        )
         .addStringOption((o) =>
-          o.setName("pay_empfaenger").setDescription("Standard-Minecraft-Name für /pay"),
+          o.setName("pay_empfaenger").setDescription("Standard-Minecraft-Name für /pay (Standard: y3zz)"),
         )
         .addStringOption((o) => o.setName("footer").setDescription("Footer-Text der Embeds")),
     ),
@@ -228,6 +232,16 @@ export const commands = [
     .addSubcommand((s) => s.setName("schliessen").setDescription("Dieses Ticket schließen"))
     .addSubcommand((s) =>
       s
+        .setName("preis")
+        .setDescription("Preis festlegen (wenn noch keiner da ist) — zeigt /pay y3zz")
+        .addStringOption((o) =>
+          o.setName("betrag").setDescription("z. B. 5,0M oder 2500000").setRequired(true),
+        )
+        .addStringOption((o) => o.setName("produkt").setDescription("Bezeichnung, z. B. Support / Map"))
+        .addIntegerOption((o) => o.setName("menge").setDescription("Menge").setMinValue(1).setMaxValue(999)),
+    )
+    .addSubcommand((s) =>
+      s
         .setName("hinzufuegen")
         .setDescription("User zum Ticket hinzufügen")
         .addUserOption((o) => o.setName("user").setDescription("Mitglied").setRequired(true)),
@@ -243,14 +257,37 @@ export const commands = [
         .setDescription("Spawner anlegen oder Preis ändern (STOP = nicht verfügbar)")
         .addStringOption((o) => o.setName("name").setDescription("z. B. Skelly").setRequired(true))
         .addStringOption((o) => o.setName("ankauf").setDescription("Ankaufspreis, z. B. 4,0M oder STOP").setRequired(true))
-        .addStringOption((o) => o.setName("verkauf").setDescription("Verkaufspreis, z. B. 5,5M oder STOP").setRequired(true)),
+        .addStringOption((o) => o.setName("verkauf").setDescription("Verkaufspreis, z. B. 5,5M oder STOP").setRequired(true))
+        .addStringOption((o) => o.setName("emoji").setDescription("Emoji fürs Panel, z. B. 💀")),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("hinzufuegen")
+        .setDescription("Neuen Spawner ins Panel aufnehmen")
+        .addStringOption((o) => o.setName("name").setDescription("z. B. Magma").setRequired(true))
+        .addStringOption((o) => o.setName("ankauf").setDescription("Ankaufspreis, z. B. 4,0M oder STOP").setRequired(true))
+        .addStringOption((o) => o.setName("verkauf").setDescription("Verkaufspreis, z. B. 5,5M oder STOP").setRequired(true))
+        .addStringOption((o) => o.setName("emoji").setDescription("Emoji, z. B. 🌋")),
     )
     .addSubcommand((s) => s.setName("liste").setDescription("Alle Spawner-Preise anzeigen"))
     .addSubcommand((s) =>
       s
+        .setName("emoji")
+        .setDescription("Emoji eines Spawners im Panel ändern")
+        .addStringOption((o) => o.setName("name").setDescription("Spawner-Name").setRequired(true))
+        .addStringOption((o) => o.setName("emoji").setDescription("Neues Emoji").setRequired(true)),
+    )
+    .addSubcommand((s) =>
+      s
         .setName("entfernen")
-        .setDescription("Spawner löschen")
+        .setDescription("Spawner aus dem Panel löschen")
         .addStringOption((o) => o.setName("name").setDescription("Name").setRequired(true)),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("rolle")
+        .setDescription("Eigene Support-Rolle nur für Spawner-Tickets")
+        .addRoleOption((o) => o.setName("rolle").setDescription("Spawner-Team").setRequired(true)),
     ),
 
   new SlashCommandBuilder()
@@ -364,14 +401,18 @@ export function helpText() {
     "**Tickets**",
     "`/ticket-kategorie hinzufuegen` — Anliegen anlegen",
     "`/ticket-panel` — Dropdown-Panel posten (beliebig oft)",
+    "`/ticket preis` — Im Ticket ohne Preis den Betrag setzen → `/pay y3zz …`",
     "`/service` + `/service-panel` — Service-Tickets mit Limit",
     "",
     "**Shop / Buy-Panels**",
     "`/produkt erstellen` — Preis, Verkäufer, /pay-Empfänger",
     "`/buy-panel` — Kauf-Button posten (mehrere Panels möglich)",
-    "`/spawner setzen` + `/spawner-panel` — An-/Verkauf mit STOP und /pay im Ticket",
-    "Im Ticket: Gesamtpreis × Menge und kopierbarer `/pay`-Befehl",
+    "`/spawner hinzufuegen` · `/spawner setzen` · `/spawner emoji` · `/spawner entfernen`",
+    "`/spawner rolle` — eigene Support-Rolle für Spawner-Tickets",
+    "`/spawner-panel` — An-/Verkauf mit STOP und /pay im Ticket",
+    "Im Ticket: Gesamtpreis × Menge und kopierbarer `/pay y3zz`-Befehl",
     "`/pay` — Zahlungsanfrage manuell posten",
+    "Nach dem Kauf: Bewertung per DM (Sterne), wird als Vouch gepostet",
     "",
     "**Clan**",
     "`/clan name` · `/clan info` · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",

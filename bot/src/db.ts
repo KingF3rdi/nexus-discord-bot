@@ -165,7 +165,36 @@ CREATE TABLE IF NOT EXISTS clan_applications (
   decided_at INTEGER,
   UNIQUE(guild_id, user_id)
 );
+
+CREATE TABLE IF NOT EXISTS vouch_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  ticket_id INTEGER,
+  user_id TEXT NOT NULL,
+  product TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  price INTEGER NOT NULL,
+  seller_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL
+);
 `);
+
+function tableColumns(table: string): Set<string> {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  return new Set(rows.map((r) => r.name));
+}
+
+function ensureColumn(table: string, column: string, ddl: string) {
+  if (!tableColumns(table).has(column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+  }
+}
+
+ensureColumn("guilds", "spawner_staff_role_id", "spawner_staff_role_id TEXT");
+ensureColumn("guilds", "vouch_channel_id", "vouch_channel_id TEXT");
+ensureColumn("spawners", "emoji", "emoji TEXT NOT NULL DEFAULT '🧱'");
+ensureColumn("tickets", "product_name", "product_name TEXT");
 
 export type GuildConfig = {
   id: string;
@@ -173,7 +202,9 @@ export type GuildConfig = {
   footer: string;
   ticket_category_id: string | null;
   staff_role_id: string | null;
+  spawner_staff_role_id: string | null;
   log_channel_id: string | null;
+  vouch_channel_id: string | null;
   pay_format: string;
   default_pay_recipient: string | null;
   one_ticket_limit: number;
@@ -245,6 +276,16 @@ export function countOpenByService(guildId: string, serviceId: number) {
   ).c;
 }
 
+export const DEFAULT_SPAWNER_EMOJI: Record<string, string> = {
+  Blaze: "🔥",
+  Cow: "🐮",
+  Creeper: "💥",
+  Iron: "⚙️",
+  Piglin: "🐷",
+  Skelly: "💀",
+  Spider: "🕷️",
+};
+
 export type Spawner = {
   id: number;
   guild_id: string;
@@ -252,6 +293,7 @@ export type Spawner = {
   buy_price: number | null;
   sell_price: number | null;
   sort_order: number;
+  emoji: string;
 };
 
 export function listSpawners(guildId: string): Spawner[] {
@@ -263,20 +305,32 @@ export function listSpawners(guildId: string): Spawner[] {
 export function ensureDefaultSpawners(guildId: string | null | undefined) {
   const id = requireGuildId(guildId);
   const count = (db.prepare("SELECT COUNT(*) AS c FROM spawners WHERE guild_id = ?").get(id) as { c: number }).c;
-  if (count > 0) return;
-  const defaults: [string, number, number | null][] = [
-    ["Blaze", 4_000_000, null],
-    ["Cow", 4_000_000, null],
-    ["Creeper", 3_500_000, 5_500_000],
-    ["Iron", 8_000_000, null],
-    ["Piglin", 4_000_000, null],
-    ["Skelly", 13_100_000, 14_000_000],
-    ["Spider", 4_000_000, null],
-  ];
-  const insert = db.prepare(
-    "INSERT INTO spawners (guild_id, name, buy_price, sell_price, sort_order) VALUES (?, ?, ?, ?, ?)",
-  );
-  defaults.forEach((row, i) => insert.run(id, row[0], row[1], row[2], i));
+  if (count === 0) {
+    const defaults: [string, number, number | null, string][] = [
+      ["Blaze", 4_000_000, null, "🔥"],
+      ["Cow", 4_000_000, null, "🐮"],
+      ["Creeper", 3_500_000, 5_500_000, "💥"],
+      ["Iron", 8_000_000, null, "⚙️"],
+      ["Piglin", 4_000_000, null, "🐷"],
+      ["Skelly", 13_100_000, 14_000_000, "💀"],
+      ["Spider", 4_000_000, null, "🕷️"],
+    ];
+    const insert = db.prepare(
+      "INSERT INTO spawners (guild_id, name, buy_price, sell_price, sort_order, emoji) VALUES (?, ?, ?, ?, ?, ?)",
+    );
+    defaults.forEach((row, i) => insert.run(id, row[0], row[1], row[2], i, row[3]));
+  }
+  backfillSpawnerEmojis(id);
+}
+
+export function backfillSpawnerEmojis(guildId: string) {
+  const rows = listSpawners(guildId);
+  const upd = db.prepare("UPDATE spawners SET emoji = ? WHERE id = ?");
+  for (const row of rows) {
+    if (row.emoji && row.emoji !== "🧱") continue;
+    const mapped = DEFAULT_SPAWNER_EMOJI[row.name];
+    if (mapped) upd.run(mapped, row.id);
+  }
 }
 
 export type ClanConfig = {

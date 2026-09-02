@@ -69,15 +69,28 @@ export function paymentEmbed(opts) {
         .setFooter({ text: footer(opts.config, opts.sku ? `Bestellung ${opts.sku}` : "Shop") })
         .setTimestamp();
 }
-export function ticketControls(ticketId) {
-    return new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setStyle(ButtonStyle.Primary).setLabel("Übernehmen"), new ButtonBuilder().setCustomId(`ticket:pay:${ticketId}`).setStyle(ButtonStyle.Success).setEmoji("💳").setLabel("Zahlungsbefehl"), new ButtonBuilder().setCustomId(`ticket:close:${ticketId}`).setStyle(ButtonStyle.Danger).setLabel("Schließen"));
+export function ticketControls(ticketId, opts) {
+    const hasPay = opts?.hasPay ?? true;
+    const payOrPrice = hasPay
+        ? new ButtonBuilder()
+            .setCustomId(`ticket:pay:${ticketId}`)
+            .setStyle(ButtonStyle.Success)
+            .setEmoji("💳")
+            .setLabel("Zahlungsbefehl")
+        : new ButtonBuilder()
+            .setCustomId(`ticket:setprice:${ticketId}`)
+            .setStyle(ButtonStyle.Success)
+            .setEmoji("💵")
+            .setLabel("Preis festlegen");
+    return new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setStyle(ButtonStyle.Primary).setLabel("Übernehmen"), payOrPrice, new ButtonBuilder().setCustomId(`ticket:close:${ticketId}`).setStyle(ButtonStyle.Danger).setLabel("Schließen"));
 }
 export function spawnerPanelEmbed(config, spawners, notifyChannelId) {
     const list = spawners
         .map((s) => {
         const buy = formatMillions(s.buy_price);
         const sell = formatMillions(s.sell_price);
-        return `*${s.name}*\n📥 Ankaufspreis: \`${buy}\`\n📤 Verkaufspreis: \`${sell}\`\n--------------------------------`;
+        const mark = s.emoji ? `${s.emoji} ` : "";
+        return `${mark}*${s.name}*\n📥 Ankaufspreis: \`${buy}\`\n📤 Verkaufspreis: \`${sell}\`\n--------------------------------`;
     })
         .join("\n");
     const notify = notifyChannelId
@@ -100,7 +113,7 @@ export function spawnerPanelEmbed(config, spawners, notifyChannelId) {
         "",
         "**Aktuelle Spawner-Arten:**",
         "--------------------------------",
-        list || "_Keine Spawner angelegt. `/spawner setzen` nutzen._",
+        list || "_Keine Spawner angelegt. `/spawner hinzufuegen` nutzen._",
     ].join("\n"))
         .setFooter({ text: "LG Management" })
         .setTimestamp();
@@ -234,6 +247,19 @@ export function winnersEmbed(publicId, lines) {
         .setTitle("🏆 Gewinner")
         .setDescription(`${lines.join("\n")}\n\n**Gewinnspiel-ID**\n\`${publicId}\``)
         .setTimestamp();
+}
+export function vouchDmEmbed(opts) {
+    return new EmbedBuilder()
+        .setColor(COLORS.gold)
+        .setTitle("⭐ Wie war der Kauf?")
+        .setDescription(`Danke für deinen Einkauf bei **${opts.community}**.\n\n**${opts.product}** × ${opts.quantity} · ${formatMoney(opts.price)}\n\nBitte bewerte den Kauf mit 1–5 Sternen. Deine Bewertung erscheint danach als Vouch auf dem Server.`)
+        .setFooter({ text: "Nur du siehst diese Nachricht · einmal bewerten" });
+}
+export function vouchStarButtons(requestId) {
+    return new ActionRowBuilder().addComponents([1, 2, 3, 4, 5].map((n) => new ButtonBuilder()
+        .setCustomId(`vouchdm:${requestId}:${n}`)
+        .setStyle(n >= 4 ? ButtonStyle.Success : ButtonStyle.Secondary)
+        .setLabel(`${n}★`)));
 }
 export function warningEmbed(text, color = COLORS.red) {
     return new EmbedBuilder().setColor(color).setDescription(text);
