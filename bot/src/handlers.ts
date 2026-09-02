@@ -82,7 +82,7 @@ async function replyError(interaction: AnyInteraction, message: string) {
 }
 
 export async function handleChatCommand(interaction: ChatInputCommandInteraction) {
-  if (!interaction.inCachedGuild()) {
+  if (!interaction.inGuild()) {
     await interaction.reply({ content: "Dieser Bot funktioniert nur auf Servern.", flags: 64 });
     return;
   }
@@ -668,7 +668,7 @@ export async function handleButton(interaction: ButtonInteraction) {
       await handleVouchDmButton(interaction);
       return;
     }
-    if (!interaction.inCachedGuild()) return;
+    if (!interaction.inGuild()) return;
     const [kind, action, rawId] = interaction.customId.split(":");
     if (kind === "buy" && action) {
       await openBuyModal(interaction, Number(action));
@@ -713,7 +713,7 @@ export async function handleButton(interaction: ButtonInteraction) {
 }
 
 export async function handleSelect(interaction: StringSelectMenuInteraction) {
-  if (!interaction.inCachedGuild()) return;
+  if (!interaction.inGuild()) return;
   try {
     if (interaction.customId.startsWith("ticket:select")) {
       await openSupportTicket(interaction, Number(interaction.values[0]));
@@ -734,7 +734,7 @@ export async function handleSelect(interaction: StringSelectMenuInteraction) {
 }
 
 export async function handleUserSelect(interaction: UserSelectMenuInteraction) {
-  if (!interaction.inCachedGuild()) return;
+  if (!interaction.inGuild()) return;
   try {
     const user = interaction.users.first();
     if (!user) throw new Error("Keine Person ausgewählt.");
@@ -770,7 +770,7 @@ export async function handleUserSelect(interaction: UserSelectMenuInteraction) {
 }
 
 export async function handleModal(interaction: import("discord.js").ModalSubmitInteraction) {
-  if (!interaction.inCachedGuild()) return;
+  if (!interaction.inGuild()) return;
   try {
     if (interaction.customId.startsWith("buy:qty:")) {
       const productId = Number(interaction.customId.split(":")[2]);

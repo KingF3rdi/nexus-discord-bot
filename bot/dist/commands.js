@@ -225,7 +225,7 @@ export const commands = [
     new SlashCommandBuilder()
         .setName("clan")
         .setDescription("Clan-Infos, Preise, Plätze und Bewerbungen verwalten")
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.ManageRoles)
         .addSubcommand((s) => s.setName("anzeigen").setDescription("Stand anzeigen: Plätze, Preise, Info"))
         .addSubcommand((s) => s
         .setName("name")
@@ -273,7 +273,7 @@ export const commands = [
     new SlashCommandBuilder()
         .setName("clan-panel")
         .setDescription("Clan-Bewerbungspanel mit Plätzen, Preisen und Infos posten")
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.ManageRoles)
         .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
     new SlashCommandBuilder().setName("help").setDescription("Alle Befehle des Bots anzeigen"),
 ].map((c) => c.toJSON());

@@ -53,16 +53,39 @@ if (!token) {
 `);
     process.exit(1);
 }
-client.once(Events.ClientReady, async (ready) => {
-    console.log(`[Nexus] Online als ${ready.user.tag} · Intents ${client.options.intents?.bitfield ?? 1}`);
+async function registerCommands() {
+    const names = commands.map((c) => ("name" in c ? c.name : "?")).join(", ");
+    console.log(`Registriere ${commands.length} Befehle: ${names}`);
+    for (const guild of client.guilds.cache.values()) {
+        try {
+            await guild.commands.set(commands);
+            console.log(`Slash-Befehle für Server "${guild.name}" gesetzt (${commands.length}, inkl. /clan).`);
+        }
+        catch (err) {
+            console.error(`Befehle für ${guild.name} fehlgeschlagen:`, err);
+        }
+    }
     try {
-        await ready.application.commands.set(commands);
-        console.log(`${commands.length} Slash-Befehle registriert.`);
+        await client.application.commands.set(commands);
+        console.log("Globale Slash-Befehle gesetzt.");
     }
     catch (err) {
-        console.error("Befehle konnten nicht registriert werden:", err);
+        console.error("Globale Befehle konnten nicht registriert werden:", err);
     }
+}
+client.once(Events.ClientReady, async (ready) => {
+    console.log(`[Nexus] Online als ${ready.user.tag} · Intents ${client.options.intents?.bitfield ?? 1}`);
+    await registerCommands();
     setInterval(() => tickGiveaways(client), 15_000);
+});
+client.on(Events.GuildCreate, async (guild) => {
+    try {
+        await guild.commands.set(commands);
+        console.log(`Slash-Befehle für neuen Server "${guild.name}" gesetzt.`);
+    }
+    catch (err) {
+        console.error(`Befehle für ${guild.name} fehlgeschlagen:`, err);
+    }
 });
 client.on(Events.Error, (err) => {
     console.error("Discord-Fehler:", err.message);
@@ -100,7 +123,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
-console.log("[Nexus] 1.0.6 start · Gateway-Intents: Guilds only");
+console.log("[Nexus] 1.0.7 start · Gateway-Intents: Guilds only");
 client.login(token).catch((err) => {
     if (isDisallowedIntents(err))
         printIntentsHelp();

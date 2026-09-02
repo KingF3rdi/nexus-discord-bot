@@ -17,7 +17,7 @@ async function replyError(interaction, message) {
     }
 }
 export async function handleChatCommand(interaction) {
-    if (!interaction.inCachedGuild()) {
+    if (!interaction.inGuild()) {
         await interaction.reply({ content: "Dieser Bot funktioniert nur auf Servern.", flags: 64 });
         return;
     }
@@ -479,7 +479,7 @@ export async function handleButton(interaction) {
             await handleVouchDmButton(interaction);
             return;
         }
-        if (!interaction.inCachedGuild())
+        if (!interaction.inGuild())
             return;
         const [kind, action, rawId] = interaction.customId.split(":");
         if (kind === "buy" && action) {
@@ -525,7 +525,7 @@ export async function handleButton(interaction) {
     }
 }
 export async function handleSelect(interaction) {
-    if (!interaction.inCachedGuild())
+    if (!interaction.inGuild())
         return;
     try {
         if (interaction.customId.startsWith("ticket:select")) {
@@ -547,7 +547,7 @@ export async function handleSelect(interaction) {
     }
 }
 export async function handleUserSelect(interaction) {
-    if (!interaction.inCachedGuild())
+    if (!interaction.inGuild())
         return;
     try {
         const user = interaction.users.first();
@@ -580,7 +580,7 @@ export async function handleUserSelect(interaction) {
     }
 }
 export async function handleModal(interaction) {
-    if (!interaction.inCachedGuild())
+    if (!interaction.inGuild())
         return;
     try {
         if (interaction.customId.startsWith("buy:qty:")) {
