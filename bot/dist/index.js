@@ -37,6 +37,9 @@ client.once(Events.ClientReady, async (ready) => {
     }
     setInterval(() => tickGiveaways(client), 15_000);
 });
+client.on(Events.Error, (err) => {
+    console.error("Discord-Fehler:", err.message);
+});
 client.on(Events.InteractionCreate, async (interaction) => {
     try {
         if (interaction.isChatInputCommand()) {
@@ -70,4 +73,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
-client.login(token);
+client.login(token).catch((err) => {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("disallowed intents") || message.includes("Used disallowed intents")) {
+        console.error(`
+┌─────────────────────────────────────────────────────────────┐
+│  Discord hat den Start blockiert: disallowed intents        │
+│                                                             │
+│  Im Developer Portal → Bot → Privileged Gateway Intents     │
+│  entweder ALLES AUS lassen (empfohlen, aktueller Code)      │
+│  oder nur einschalten, was wirklich nötig ist.              │
+│  Danach den Bot im Host neu starten.                        │
+└─────────────────────────────────────────────────────────────┘
+`);
+    }
+    else {
+        console.error(err);
+    }
+    process.exit(1);
+});
