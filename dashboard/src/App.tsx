@@ -720,7 +720,7 @@ function CommandsChannel({
           Kanäle gesendet werden.
         </p>
         <Field name="/setup setzen" value="Ticket-Kategorie, Team-Rolle, Standard-/pay-Empfänger" />
-        <Field name="/sagen · /embed" value="Bot schreibt deinen Text oder ein farbiges Embed" />
+        <Field name="/msg · /sagen · /embed" value="/msg schreibt in einen Kanal oder per DM an eine Person" />
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />

@@ -26,6 +26,16 @@ export const commands = [
         .addStringOption((o) => o.setName("farbe").setDescription("Embed-Farbe (gruen, gelb, rot, gold oder #hex)"))
         .addStringOption((o) => o.setName("titel").setDescription("Embed-Titel")),
     new SlashCommandBuilder()
+        .setName("msg")
+        .setDescription("Nachricht als Bot schreiben — Kanal oder DM")
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+        .addStringOption((o) => o.setName("text").setDescription("Nachricht").setRequired(true).setMaxLength(2000))
+        .addUserOption((o) => o.setName("user").setDescription("Per DM an diese Person (statt oder zusätzlich zum Kanal)"))
+        .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal (Standard: hier)").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement))
+        .addBooleanOption((o) => o.setName("embed").setDescription("Als Embed senden"))
+        .addStringOption((o) => o.setName("titel").setDescription("Embed-Titel"))
+        .addStringOption((o) => o.setName("farbe").setDescription("Embed-Farbe (gruen, gelb, rot, gold oder #hex)")),
+    new SlashCommandBuilder()
         .setName("embed")
         .setDescription("Eine formatierte Embed-Nachricht senden")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
@@ -272,6 +282,7 @@ export function helpText() {
         "`/setup anzeigen` — aktuelle Werte",
         "",
         "**Nachrichten**",
+        "`/msg` — Nachricht schreiben (Kanal oder DM an eine Person)",
         "`/sagen` — Bot schreibt deinen Text",
         "`/embed` — farbiges Embed senden",
         "",

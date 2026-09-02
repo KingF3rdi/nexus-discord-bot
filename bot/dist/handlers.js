@@ -30,6 +30,9 @@ export async function handleChatCommand(interaction) {
             case "sagen":
                 await cmdSay(interaction);
                 break;
+            case "msg":
+                await cmdMsg(interaction);
+                break;
             case "embed":
                 await cmdEmbed(interaction);
                 break;
@@ -144,6 +147,36 @@ async function cmdSay(interaction) {
         await channel.send({ content: text });
     }
     await interaction.reply({ content: `Nachricht in ${channel} gesendet.`, flags: 64 });
+}
+async function cmdMsg(interaction) {
+    const text = interaction.options.getString("text", true);
+    const user = interaction.options.getUser("user");
+    const asEmbed = interaction.options.getBoolean("embed") ?? false;
+    const title = interaction.options.getString("titel");
+    const color = parseColor(interaction.options.getString("farbe"));
+    const payload = asEmbed
+        ? { embeds: [customEmbed({ title, description: text, color })] }
+        : { content: text };
+    const sent = [];
+    const wantsChannel = Boolean(interaction.options.getChannel("kanal")) || !user;
+    if (user) {
+        try {
+            await user.send(payload);
+            sent.push(`DM an ${user}`);
+        }
+        catch {
+            throw new Error(`${user} hat DMs deaktiviert. Die Nachricht wurde nicht zugestellt.`);
+        }
+    }
+    if (wantsChannel) {
+        const channel = await resolveTextChannel(interaction);
+        await channel.send(payload);
+        sent.push(`${channel}`);
+    }
+    await interaction.reply({
+        content: `Nachricht gesendet: ${sent.join(" · ")}`,
+        flags: 64,
+    });
 }
 async function cmdEmbed(interaction) {
     const description = interaction.options.getString("beschreibung", true);
