@@ -8,7 +8,7 @@ import {
   Mention,
   SelectBox,
 } from "./components/ui";
-import { formatMillions, formatMoney, payCommand, stars } from "./format";
+import { formatMillions, formatMoney, parsePrice, payCommand, stars } from "./format";
 import { DiscordMarkdown } from "./markdown";
 
 type ChannelId = "ticket" | "map" | "vouch" | "fwm" | "giveaway" | "services" | "spawner" | "clan" | "commands" | `kauf-${string}`;
@@ -584,6 +584,9 @@ function ClanChannel() {
     { name: "FriendsWithMoney", filled: 4, max: 30 },
     { name: "FWM2", filled: 12, max: 30 },
   ]);
+  const [prices, setPrices] = useState<{ label: string; amount: number }[]>([]);
+  const [priceLabel, setPriceLabel] = useState("");
+  const [priceAmount, setPriceAmount] = useState("");
   const [phase, setPhase] = useState<"idle" | "pending" | "accepted">("idle");
   const [hint, setHint] = useState<string | null>(null);
   const allFull = clans.length > 0 && clans.every((c) => c.filled >= c.max);
@@ -591,6 +594,54 @@ function ClanChannel() {
   function removeClan(name: string) {
     setClans((list) => list.filter((c) => c.name !== name));
     setHint(`**${name}** vom Panel genommen. \`/clan entfernen name:${name}\``);
+  }
+
+  function savePrice() {
+    const label = priceLabel.trim();
+    if (!label) {
+      setHint("Bezeichnung fehlt. `/clan preis-setzen bezeichnung:… betrag:…`");
+      return;
+    }
+    const amount = parsePrice(priceAmount);
+    if (amount == null) {
+      removePrice(label);
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setHint("Betrag ungültig. Beispiel: `3,0M` — oder `STOP` zum Entfernen.");
+      return;
+    }
+    const exists = prices.some((p) => p.label.toLowerCase() === label.toLowerCase());
+    setPrices((list) => {
+      const next = list.filter((p) => p.label.toLowerCase() !== label.toLowerCase());
+      return [...next, { label, amount }];
+    });
+    setHint(
+      exists
+        ? `Preis **${label}** geändert auf \`${formatMillions(amount)}\`. \`/clan preis-setzen bezeichnung:${label} betrag:${priceAmount}\``
+        : `Preis **${label}** festgelegt: \`${formatMillions(amount)}\`. \`/clan preis-setzen bezeichnung:${label} betrag:${priceAmount}\``,
+    );
+    setPriceLabel("");
+    setPriceAmount("");
+  }
+
+  function removePrice(name: string) {
+    const label = name.trim();
+    if (!label) {
+      setHint("Bezeichnung fehlt. `/clan preis-entfernen bezeichnung:…`");
+      return;
+    }
+    const found = prices.find((p) => p.label.toLowerCase() === label.toLowerCase());
+    if (!found) {
+      setHint(`Kein Preis **${label}**.`);
+      return;
+    }
+    setPrices((list) => list.filter((p) => p.label.toLowerCase() !== label.toLowerCase()));
+    setHint(`Preis **${found.label}** entfernt. \`/clan preis-entfernen bezeichnung:${found.label}\``);
+    if (priceLabel.toLowerCase() === found.label.toLowerCase()) {
+      setPriceLabel("");
+      setPriceAmount("");
+    }
   }
 
   function apply() {
@@ -671,17 +722,58 @@ function ClanChannel() {
             <p className="mt-3 text-[#b5bac1]">Keine Clans. /clan hinzufuegen</p>
           )}
           <p className="mt-3 font-semibold text-white">Preise</p>
-          <p className="mt-1">
-            • <strong>Eintritt:</strong> <Code>5,0M</Code> ($5.000.000)
-          </p>
-          <p>
-            • <strong>Wöchentliche Abgabe:</strong> <Code>2,0M</Code> ($2.000.000)
-          </p>
+          {prices.length ? (
+            <div className="mt-1 space-y-1">
+              {prices.map((p) => (
+                <p key={p.label} className="flex items-center justify-between gap-2">
+                  <span>
+                    • <strong>{p.label}:</strong> <Code>{formatMillions(p.amount)}</Code> ({formatMoney(p.amount)})
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded bg-[#da373c] px-2 py-0.5 text-[11px] text-white"
+                    onClick={() => removePrice(p.label)}
+                  >
+                    Entfernen
+                  </button>
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-1 italic text-[#b5bac1]">Keine Preise. Team: /clan preis-setzen / /clan preis-entfernen</p>
+          )}
         </Embed>
         <DiscordButton onClick={apply} disabled={!clans.length || (allFull && phase !== "accepted")}>
           {!clans.length ? "Keine Clans" : allFull ? "Clan ist voll" : "Jetzt bewerben"}
         </DiscordButton>
       </DiscordMessage>
+      <div className="mx-4 mt-3 max-w-[520px] rounded bg-[#2b2d31] p-3">
+        <p className="mb-2 text-sm font-semibold text-white">Team · Preise festlegen, ändern, entfernen</p>
+        <p className="mb-2 text-xs text-[#949ba4]">
+          Wie in Discord: <Code>/clan preis-setzen</Code> · <Code>/clan preis-entfernen</Code> · Betrag <Code>STOP</Code>{" "}
+          löscht die Zeile.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={priceLabel}
+            onChange={(e) => setPriceLabel(e.target.value)}
+            placeholder="Bezeichnung"
+            aria-label="Preisbezeichnung"
+            className="min-w-[8rem] flex-1 rounded bg-[#1e1f22] px-2 py-1.5 text-sm text-white outline-none"
+          />
+          <input
+            value={priceAmount}
+            onChange={(e) => setPriceAmount(e.target.value)}
+            placeholder="3,0M oder STOP"
+            aria-label="Preisbetrag"
+            className="w-32 rounded bg-[#1e1f22] px-2 py-1.5 text-sm text-white outline-none"
+          />
+          <DiscordButton onClick={savePrice}>Festlegen</DiscordButton>
+          <DiscordButton variant="danger" onClick={() => removePrice(priceLabel)}>
+            Entfernen
+          </DiscordButton>
+        </div>
+      </div>
       {phase !== "idle" && clans[0] && (
         <DiscordMessage>
           <Embed color="#23a559" footer="FriendsWithMoney · Clan-Bewerbung">
@@ -800,6 +892,10 @@ function CommandsChannel({
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
         <Field name="/spawner rolle + /spawner-panel" value="Preiskacheln, STOP, eigene Support-Rolle für Spawner-Tickets" />
         <Field name="/clan hinzufuegen · entfernen" value="Clans aufs Panel setzen oder wieder runternehmen" />
+        <Field
+          name="/clan preis-setzen · preis-entfernen"
+          value="Preise selbst festlegen, ändern oder löschen — kein festes Eintritt / Abgabe"
+        />
         <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />

@@ -152,7 +152,7 @@ export function spawnerButtons() {
 }
 export function clanPanelEmbed(config, clans, prices) {
     const priceLines = prices.map((p) => `• **${p.label}:** \`${formatMillions(p.amount)}\` (${formatMoney(p.amount)})`).join("\n") ||
-        "_Keine Preise. `/clan preis-setzen`_";
+        "_Keine Preise. Team: `/clan preis-setzen` / `/clan preis-entfernen`_";
     const allFull = clans.length > 0 && clans.every((c) => c.filled >= c.max_slots);
     if (!clans.length) {
         return new EmbedBuilder()

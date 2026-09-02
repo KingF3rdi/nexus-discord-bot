@@ -368,27 +368,30 @@ export const commands = [
     .addSubcommand((s) =>
       s
         .setName("empfaenger")
-        .setDescription("Minecraft-Empfänger für Clan-Eintritt (/pay)")
+        .setDescription("Minecraft-Empfänger für Clan-Zahlungen (/pay)")
         .addStringOption((o) => o.setName("name").setDescription("Minecraft-Name").setRequired(true).setMaxLength(32))
         .addStringOption((o) => o.setName("clan").setDescription("Welcher Clan, falls mehrere")),
     )
     .addSubcommand((s) =>
       s
         .setName("preis-setzen")
-        .setDescription("Einen Clan-Preis setzen oder überschreiben")
+        .setDescription("Clan-Preis festlegen oder ändern (STOP = entfernen)")
         .addStringOption((o) =>
-          o.setName("bezeichnung").setDescription("z. B. Eintritt, Wöchentliche Abgabe").setRequired(true).setMaxLength(80),
+          o.setName("bezeichnung").setDescription("Name der Preiszeile, z. B. Raid-Kosten").setRequired(true).setMaxLength(80),
         )
         .addStringOption((o) =>
-          o.setName("betrag").setDescription("z. B. 5,0M oder 2000000").setRequired(true),
+          o.setName("betrag").setDescription("z. B. 5,0M — STOP entfernt die Zeile").setRequired(true),
         ),
     )
-    .addSubcommand((s) => s.setName("preis-liste").setDescription("Alle Clan-Preise mit IDs anzeigen"))
+    .addSubcommand((s) => s.setName("preis-liste").setDescription("Alle Clan-Preise anzeigen"))
     .addSubcommand((s) =>
       s
         .setName("preis-entfernen")
-        .setDescription("Einen Clan-Preis per ID entfernen")
-        .addIntegerOption((o) => o.setName("id").setDescription("ID aus /clan preis-liste").setRequired(true)),
+        .setDescription("Einen Clan-Preis entfernen")
+        .addStringOption((o) =>
+          o.setName("bezeichnung").setDescription("Name der Preiszeile").setMaxLength(80),
+        )
+        .addIntegerOption((o) => o.setName("id").setDescription("Optional: ID aus /clan preis-liste")),
     )
     .addSubcommand((s) =>
       s
@@ -458,7 +461,7 @@ export function helpText() {
     "",
     "**Clan**",
     "`/clan name` · `/clan info` (formatiert) · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
-    "`/clan preis-setzen` · `/clan preis-liste` · `/clan empfaenger`",
+    "`/clan preis-setzen` · `/clan preis-entfernen` · `/clan preis-liste` — Preise selbst festlegen, ändern, löschen",
     "`/clan hinzufuegen` · `/clan entfernen` — Clans aufs Panel / wieder runter",
     "`/clan panel` · `/clan-panel` — Bewerbungspanel posten",
     "`/clan rolle` — Rolle, die bei Annahme automatisch vergeben wird",

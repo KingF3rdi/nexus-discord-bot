@@ -1,5 +1,5 @@
 import { ActionRowBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, } from "discord.js";
-import { countAcceptedClanMembers, db, deleteClan, getClanById, getGuild, insertClan, listClanPrices, listClans, requireGuildId, resolveClan, updateClanRow, } from "./db.js";
+import { countAcceptedClanMembers, db, deleteClan, deleteClanPrice, getClanById, getGuild, insertClan, listClanPrices, listClans, requireGuildId, resolveClan, updateClanRow, upsertClanPrice, } from "./db.js";
 import { clanPanelComponents, clanPanelEmbed, clanTicketControls, paymentEmbed, ticketControls } from "./embeds.js";
 import { COLORS, formatMillions, formatUserText, parsePrice, shopPayRecipient } from "./util.js";
 import { createTicketChannel, insertTicket, isStaff, resolveTextChannel } from "./tickets.js";
@@ -165,20 +165,26 @@ export async function cmdClan(interaction) {
         return;
     }
     if (sub === "preis-setzen") {
-        const label = interaction.options.getString("bezeichnung", true);
-        const amount = parsePrice(interaction.options.getString("betrag", true));
-        if (amount == null)
-            throw new Error("Preis darf nicht STOP sein.");
-        const existing = db
-            .prepare("SELECT id FROM clan_prices WHERE guild_id = ? AND lower(label) = lower(?)")
-            .get(guildId, label);
-        if (existing)
-            db.prepare("UPDATE clan_prices SET amount = ? WHERE id = ?").run(amount, existing.id);
-        else
-            db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, 99)").run(guildId, label, amount);
+        const label = interaction.options.getString("bezeichnung", true).trim();
+        const raw = interaction.options.getString("betrag", true);
+        const amount = parsePrice(raw);
+        if (amount == null) {
+            const removed = deleteClanPrice(guildId, { label });
+            if (!removed)
+                throw new Error(`Kein Preis **${label}** — nichts zu entfernen.`);
+            await refreshClanPanels(interaction.client, guildId);
+            await interaction.reply({
+                content: `Preis **${removed.label}** entfernt. Panel aktualisiert.`,
+                flags: 64,
+            });
+            return;
+        }
+        if (amount <= 0)
+            throw new Error("Betrag muss größer als 0 sein (oder STOP zum Entfernen).");
+        upsertClanPrice(guildId, label, amount);
         await refreshClanPanels(interaction.client, guildId);
         await interaction.reply({
-            content: `Preis **${label}** = \`${formatMillions(amount)}\` gespeichert.`,
+            content: `Preis **${label}** = \`${formatMillions(amount)}\` gespeichert. Panel aktualisiert.`,
             flags: 64,
         });
         return;
@@ -186,7 +192,7 @@ export async function cmdClan(interaction) {
     if (sub === "preis-liste") {
         const body = listClanPrices(guildId)
             .map((p) => `\`${p.id}\` **${p.label}** · ${formatMillions(p.amount)}`)
-            .join("\n") || "_Keine Preise._";
+            .join("\n") || "_Keine Preise. `/clan preis-setzen` zum Festlegen._";
         await interaction.reply({
             embeds: [new EmbedBuilder().setColor(COLORS.green).setTitle("Clan-Preise").setDescription(body)],
             flags: 64,
@@ -194,10 +200,20 @@ export async function cmdClan(interaction) {
         return;
     }
     if (sub === "preis-entfernen") {
-        const id = interaction.options.getInteger("id", true);
-        db.prepare("DELETE FROM clan_prices WHERE id = ? AND guild_id = ?").run(id, guildId);
+        const id = interaction.options.getInteger("id");
+        const label = interaction.options.getString("bezeichnung");
+        if (id == null && !label?.trim()) {
+            throw new Error("Bezeichnung oder ID angeben. `/clan preis-liste` zeigt beide.");
+        }
+        const removed = deleteClanPrice(guildId, { id, label });
+        if (!removed) {
+            throw new Error(id != null ? `Preis-ID ${id} nicht gefunden.` : `Kein Preis **${label}**.`);
+        }
         await refreshClanPanels(interaction.client, guildId);
-        await interaction.reply({ content: `Preis ${id} entfernt.`, flags: 64 });
+        await interaction.reply({
+            content: `Preis **${removed.label}** entfernt. Panel aktualisiert.`,
+            flags: 64,
+        });
         return;
     }
     if (sub === "liste") {

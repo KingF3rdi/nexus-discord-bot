@@ -386,27 +386,13 @@ function seedClansFromConfig() {
 }
 seedClansFromConfig();
 
-function ensureClanPrices(guildId: string) {
-  const priceCount = (db.prepare("SELECT COUNT(*) AS c FROM clan_prices WHERE guild_id = ?").get(guildId) as { c: number }).c;
-  if (priceCount === 0) {
-    db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, ?)").run(
-      guildId,
-      "Eintritt",
-      5_000_000,
-      0,
-    );
-    db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, ?)").run(
-      guildId,
-      "Wöchentliche Abgabe",
-      2_000_000,
-      1,
-    );
-  }
-}
+/** Früher automatisch gesetzte Demo-Preise — Staff legt Preise selbst fest. */
+db.prepare(
+  "DELETE FROM clan_prices WHERE lower(label) IN ('eintritt', 'wöchentliche abgabe')",
+).run();
 
 export function listClans(guildId: string | null | undefined): ClanConfig[] {
   const id = requireGuildId(guildId);
-  ensureClanPrices(id);
   return db.prepare("SELECT * FROM clans WHERE guild_id = ? ORDER BY sort_order, name").all(id) as ClanConfig[];
 }
 
@@ -453,7 +439,6 @@ export function insertClan(
     opts.pay_recipient ?? null,
     opts.role_id ?? null,
   );
-  ensureClanPrices(guildId);
   return resolveClan(guildId, name);
 }
 
@@ -471,8 +456,50 @@ export function updateClanRow(clanId: number, guildId: string, patch: Partial<Om
 }
 
 export function listClanPrices(guildId: string): ClanPrice[] {
-  ensureClanPrices(guildId);
   return db.prepare("SELECT * FROM clan_prices WHERE guild_id = ? ORDER BY sort_order, id").all(guildId) as ClanPrice[];
+}
+
+export function findClanPrice(guildId: string, label: string): ClanPrice | undefined {
+  return db
+    .prepare("SELECT * FROM clan_prices WHERE guild_id = ? AND lower(label) = lower(?)")
+    .get(guildId, label.trim()) as ClanPrice | undefined;
+}
+
+export function upsertClanPrice(guildId: string, label: string, amount: number): ClanPrice {
+  const name = label.trim();
+  if (!name) throw new Error("Bezeichnung fehlt.");
+  const existing = findClanPrice(guildId, name);
+  if (existing) {
+    db.prepare("UPDATE clan_prices SET amount = ?, label = ? WHERE id = ? AND guild_id = ?").run(
+      amount,
+      name,
+      existing.id,
+      guildId,
+    );
+  } else {
+    db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, 99)").run(
+      guildId,
+      name,
+      amount,
+    );
+  }
+  return findClanPrice(guildId, name)!;
+}
+
+export function deleteClanPrice(
+  guildId: string,
+  opts: { id?: number | null; label?: string | null },
+): ClanPrice | undefined {
+  const byId =
+    opts.id != null
+      ? (db.prepare("SELECT * FROM clan_prices WHERE id = ? AND guild_id = ?").get(opts.id, guildId) as
+          | ClanPrice
+          | undefined)
+      : undefined;
+  const row = byId ?? (opts.label?.trim() ? findClanPrice(guildId, opts.label) : undefined);
+  if (!row) return undefined;
+  db.prepare("DELETE FROM clan_prices WHERE id = ? AND guild_id = ?").run(row.id, guildId);
+  return row;
 }
 
 export function countAcceptedClanMembers(guildId: string, clanId?: number | null): number {

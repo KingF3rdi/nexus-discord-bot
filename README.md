@@ -82,7 +82,7 @@ npm run bot
 | `/clan hinzufuegen` / `/clan entfernen` | Clan aufs Panel / vom Panel nehmen |
 | `/clan panel` / `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
 | `/clan plaetze` | Maximum setzen (z. B. 30) |
-| `/clan info` / `/clan name` / `/clan preis-setzen` | Texte (Info mit Markdown) und Preise im Panel |
+| `/clan info` / `/clan name` / `/clan preis-setzen` | Texte und Preise — Preise selbst festlegen, ändern oder löschen |
 | `/clan rolle` | Rolle, die bei Annahme automatisch vergeben wird |
 | `/clan annehmen` / `ablehnen` / `kick` | Platz belegen, ablehnen oder wieder freigeben |
 | `/pay` | Zahlungsanfrage mit Gesamtbetrag posten |
@@ -110,10 +110,14 @@ Im geöffneten Ticket steht z. B. bei Menge 3:
 /clan name text:FriendsWithMoney
 /clan info text:Aktiver Money-Clan. Fairer Support, klare Preise.
 /clan plaetze anzahl:30
-/clan preis-setzen bezeichnung:Eintritt betrag:5,0M
+/clan preis-setzen bezeichnung:Raid-Kosten betrag:3,0M
+/clan preis-setzen bezeichnung:Raid-Kosten betrag:4,5M
+/clan preis-entfernen bezeichnung:Raid-Kosten
 /clan rolle rolle:@Clan
 /clan panel
 ```
+
+Es gibt **keine** fest eingebauten Preise (kein Eintritt, keine wöchentliche Abgabe). Das Panel bleibt leer, bis das Team Zeilen mit `/clan preis-setzen` anlegt. Dieselbe Bezeichnung erneut setzen ändert den Betrag. `betrag:STOP` oder `/clan preis-entfernen` löscht die Zeile.
 
 Das Panel zeigt z. B. **4/30 Plätze**. Eine Bewerbung ändert die Zahl **nicht**. Erst `/clan annehmen` (oder der Button im Ticket) erhöht auf **5/30** und vergibt die Clan-Rolle. Dieselbe Person ein zweites Mal annehmen ändert nichts. `/clan kick` gibt den Platz frei und nimmt die Rolle wieder.
 
