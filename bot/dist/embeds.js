@@ -149,6 +149,7 @@ export function clanPanelEmbed(config, clan, filled, prices) {
         "",
         "🔒 **Hinweis**",
         "Jede Person zählt **nur einmal**. Doppelte oder erneute Bewerbungen erhöhen die Platzzahl nicht.",
+        clan.role_id ? `Bei Annahme erhältst du die Rolle <@&${clan.role_id}>.` : "",
         full ? "\nDer Clan nimmt derzeit **keine** neuen Mitglieder auf." : "Klicke auf den Button, um dich zu bewerben.",
     ].join("\n"))
         .setFooter({ text: `${config.community_name} · Clan-System` })

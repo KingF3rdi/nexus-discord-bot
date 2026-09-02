@@ -82,6 +82,7 @@ npm run bot
 | `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
 | `/clan plaetze` | Maximum setzen (z. B. 30) |
 | `/clan info` / `/clan name` / `/clan preis-setzen` | Texte und Preise im Panel |
+| `/clan rolle` | Rolle, die bei Annahme automatisch vergeben wird |
 | `/clan annehmen` / `ablehnen` / `kick` | Platz belegen, ablehnen oder wieder freigeben |
 | `/pay` | Zahlungsanfrage mit Gesamtbetrag posten |
 | `/giveaway starten` | Gewinnspiel mit Button |
@@ -109,10 +110,11 @@ Im geöffneten Ticket steht z. B. bei Menge 3:
 /clan info text:Aktiver Money-Clan. Fairer Support, klare Preise.
 /clan plaetze anzahl:30
 /clan preis-setzen bezeichnung:Eintritt betrag:5,0M
+/clan rolle rolle:@Clan
 /clan-panel
 ```
 
-Das Panel zeigt z. B. **4/30 Plätze**. Eine Bewerbung ändert die Zahl **nicht**. Erst `/clan annehmen` (oder der Button im Ticket) erhöht auf **5/30**. Dieselbe Person ein zweites Mal annehmen ändert nichts. `/clan kick` gibt den Platz wieder frei.
+Das Panel zeigt z. B. **4/30 Plätze**. Eine Bewerbung ändert die Zahl **nicht**. Erst `/clan annehmen` (oder der Button im Ticket) erhöht auf **5/30** und vergibt die Clan-Rolle. Dieselbe Person ein zweites Mal annehmen ändert nichts. `/clan kick` gibt den Platz frei und nimmt die Rolle wieder.
 
 Nach einem Kauf (Ticket schließen) schickt der Bot dem Käufer eine **DM** mit 1–5 Sternen. Die Bewertung landet im Vouch-Kanal.
 

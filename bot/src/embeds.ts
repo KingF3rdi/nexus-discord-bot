@@ -222,7 +222,7 @@ export function spawnerButtons() {
 
 export function clanPanelEmbed(
   config: { community_name: string; footer: string },
-  clan: { name: string; info: string; max_slots: number },
+  clan: { name: string; info: string; max_slots: number; role_id?: string | null },
   filled: number,
   prices: { label: string; amount: number }[],
 ) {
@@ -247,6 +247,7 @@ export function clanPanelEmbed(
         "",
         "🔒 **Hinweis**",
         "Jede Person zählt **nur einmal**. Doppelte oder erneute Bewerbungen erhöhen die Platzzahl nicht.",
+        clan.role_id ? `Bei Annahme erhältst du die Rolle <@&${clan.role_id}>.` : "",
         full ? "\nDer Clan nimmt derzeit **keine** neuen Mitglieder auf." : "Klicke auf den Button, um dich zu bewerben.",
       ].join("\n"),
     )

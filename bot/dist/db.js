@@ -189,6 +189,7 @@ ensureColumn("guilds", "spawner_staff_role_id", "spawner_staff_role_id TEXT");
 ensureColumn("guilds", "vouch_channel_id", "vouch_channel_id TEXT");
 ensureColumn("spawners", "emoji", "emoji TEXT NOT NULL DEFAULT '🧱'");
 ensureColumn("tickets", "product_name", "product_name TEXT");
+ensureColumn("clan_config", "role_id", "role_id TEXT");
 export function requireGuildId(id) {
     if (!id)
         throw new Error("Dieser Bot funktioniert nur auf Servern.");

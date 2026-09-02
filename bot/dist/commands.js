@@ -253,6 +253,10 @@ export const commands = [
         .setName("preis-entfernen")
         .setDescription("Einen Clan-Preis per ID entfernen")
         .addIntegerOption((o) => o.setName("id").setDescription("ID aus /clan preis-liste").setRequired(true)))
+        .addSubcommand((s) => s
+        .setName("rolle")
+        .setDescription("Rolle, die bei Annahme der Bewerbung vergeben wird")
+        .addRoleOption((o) => o.setName("rolle").setDescription("Clan-Mitgliedsrolle").setRequired(true)))
         .addSubcommand((s) => s.setName("liste").setDescription("Angenommene, offene und abgelehnte Bewerbungen"))
         .addSubcommand((s) => s
         .setName("annehmen")
@@ -306,6 +310,7 @@ export function helpText() {
         "`/clan name` · `/clan info` · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
         "`/clan preis-setzen` · `/clan preis-liste` · `/clan empfaenger`",
         "`/clan-panel` — Bewerbungspanel (Plätze nur bei Annahme, 1 Person = 1 Platz)",
+        "`/clan rolle` — Rolle, die bei Annahme automatisch vergeben wird",
         "`/clan annehmen` · `/clan ablehnen` · `/clan kick` — Platz frei / belegt",
         "",
         "**Giveaways & Vouches**",

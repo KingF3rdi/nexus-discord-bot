@@ -588,7 +588,7 @@ function ClanChannel() {
     const next = filled + 1;
     setFilled(next);
     setPhase("accepted");
-    setHint(`Angenommen. Plätze jetzt ${next}/${max}.`);
+    setHint(`Angenommen. Plätze jetzt ${next}/${max}. Clan-Rolle vergeben.`);
   }
 
   function reject() {
@@ -626,7 +626,7 @@ function ClanChannel() {
             • <strong>Wöchentliche Abgabe:</strong> <Code>2,0M</Code> ($2.000.000)
           </p>
           <p className="mt-3 text-[#b5bac1]">
-            🔒 Jede Person zählt nur einmal. Doppelte oder erneute Bewerbungen erhöhen die Platzzahl nicht.
+            🔒 Jede Person zählt nur einmal. Bei Annahme erhältst du die Clan-Rolle.
           </p>
         </Embed>
         <DiscordButton onClick={apply} disabled={full && phase !== "accepted"}>
@@ -725,7 +725,7 @@ function CommandsChannel({
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
         <Field name="/spawner rolle + /spawner-panel" value="Eigene Support-Rolle nur für Spawner-Tickets" />
-        <Field name="/clan + /clan-panel" value="Bewerbungspanel: Info, Preise, Plätze 4/30 — nur angenommene zählen, nie doppelt" />
+        <Field name="/clan + /clan-panel" value="Bewerbungspanel, Plätze, Rolle bei Annahme automatisch" />
         <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />
