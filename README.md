@@ -9,7 +9,7 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 - **Tickets** — Panel mit Dropdown (Support, Clan-Fight, …). Ein offenes Support-Ticket pro Person. Ist **kein Preis** gesetzt, legt das Team ihn mit **Preis festlegen** oder `/ticket preis` fest — danach erscheint `/pay y3zz <betrag>`.
 - **Buy-Panels** — Produkt mit Preis, Verkäufer, Bild und grünem Kauf-Button. Klick öffnet ein privates Ticket, rechnet `Menge × Preis` und postet z. B. `/pay y3zz 18000000`. Nach dem Schließen bekommt der Käufer eine **DM mit Sternen**; die Bewertung wird als Vouch gepostet (Kanal von `/vouch-panel` oder `/setup setzen vouch_kanal`).
 - **Mehrere Panels** — `/ticket-panel` und `/buy-panel` so oft senden, wie du willst, in beliebige Kanäle.
-- **Texte senden** — `/msg`, `/sagen` und `/embed` öffnen ein **Textfenster**: **fett**, *kursiv*, Zeilenumbrüche mit Enter, optional Embed oder DM.
+- **Texte senden** — `/msg` öffnet ein **Textfenster** (wie eine Bewerbung): Nachricht eintragen, **Senden** postet sie in **diesen Kanal**. Optional `kanal:`, `user:` (DM), Embed mit Titel. `/sagen` und `/embed` nutzen dasselbe Fenster.
 - **Giveaways** — Start mit Dauer (`7h`, `30m`, `1d`), Teilnehmen-Button, automatische Auslosung, Reroll.
 - **Vouches** — Bewertung mit Sternen, Produkt, Menge, Preis. `/vouch-panel` hängt **ein** Auswertungs-Panel **ans Ende** des Kanals; ein altes Panel wird gelöscht. Neue Vouches (auch per DM) schieben das Panel wieder nach unten.
 - **Services** — z. B. Bau-Service mit Limit (`10/10 Tickets – Limit erreicht`).
@@ -66,7 +66,7 @@ npm run bot
 | Befehl | Zweck |
 | --- | --- |
 | `/setup setzen` | Community-Name, Ticket-Kategorie, Team-Rolle, `/pay`-Empfänger |
-| `/msg` | Textfenster mit Markdown; Kanal oder DM |
+| `/msg` | Textfenster: Nachricht eintragen und in diesen Kanal senden |
 | `/sagen` | Textfenster (optional als Embed) |
 | `/embed` | Farbiges Embed — Text im Formatierungsfenster |
 | `/ticket-kategorie hinzufuegen` | Anliegen für das Ticket-Dropdown |

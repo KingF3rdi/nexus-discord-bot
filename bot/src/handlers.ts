@@ -229,21 +229,34 @@ type MsgDraft = {
 
 const msgDrafts = new Map<string, MsgDraft>();
 
-function composeModal(maxLength: number) {
+function composeModal(opts: { title: string; maxLength: number; defaultTitle?: string | null }) {
+  const titleInput = new TextInputBuilder()
+    .setCustomId("title")
+    .setLabel("Titel (leer = normaler Text, ausgefüllt = Embed)")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(false)
+    .setMaxLength(256)
+    .setPlaceholder("z. B. Ankündigung");
+  if (opts.defaultTitle?.trim()) titleInput.setValue(opts.defaultTitle.trim().slice(0, 256));
   return new ModalBuilder()
     .setCustomId("msg:compose")
-    .setTitle("Nachricht formatieren")
+    .setTitle(opts.title.slice(0, 45))
     .addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("text")
-          .setLabel("Text  ·  **fett**  *kursiv*  __unter__")
+          .setLabel("Nachricht  ·  **fett**  *kursiv*  Enter = neue Zeile")
           .setStyle(TextInputStyle.Paragraph)
           .setRequired(true)
-          .setMaxLength(maxLength)
-          .setPlaceholder("**Willkommen**\n*Shop ist online.*\n||Geheimnis||"),
+          .setMaxLength(Math.min(opts.maxLength, 4000))
+          .setPlaceholder("**Willkommen**\nShop ist *online*.\nDanach unten auf Senden."),
       ),
     );
+}
+
+function slashChannelId(interaction: ChatInputCommandInteraction): string | null {
+  return interaction.options.getChannel("kanal")?.id ?? interaction.channelId;
 }
 
 function saveMsgDraft(userId: string, draft: MsgDraft) {
@@ -251,34 +264,12 @@ function saveMsgDraft(userId: string, draft: MsgDraft) {
 }
 
 async function cmdSay(interaction: ChatInputCommandInteraction) {
-  const channel = await resolveTextChannel(interaction);
+  const channelId = slashChannelId(interaction);
+  if (!channelId) throw new Error("Kein Zielkanal. `/sagen` in einem Textkanal nutzen oder `kanal:` setzen.");
   const asEmbed = interaction.options.getBoolean("embed") ?? false;
   saveMsgDraft(interaction.user.id, {
     command: "sagen",
     targetUserId: null,
-    channelId: channel.id,
-    embed: asEmbed,
-    title: interaction.options.getString("titel"),
-    color: parseColor(interaction.options.getString("farbe")),
-    image: null,
-    footer: null,
-  });
-  await interaction.showModal(composeModal(asEmbed ? 4000 : 2000));
-}
-
-async function cmdMsg(interaction: ChatInputCommandInteraction) {
-  const user = interaction.options.getUser("user");
-  const kanal = interaction.options.getChannel("kanal");
-  const asEmbed = interaction.options.getBoolean("embed") ?? false;
-  let channelId: string | null = null;
-  if (kanal) {
-    channelId = kanal.id;
-  } else if (!user) {
-    channelId = (await resolveTextChannel(interaction)).id;
-  }
-  saveMsgDraft(interaction.user.id, {
-    command: "msg",
-    targetUserId: user?.id ?? null,
     channelId,
     embed: asEmbed,
     title: interaction.options.getString("titel"),
@@ -286,35 +277,77 @@ async function cmdMsg(interaction: ChatInputCommandInteraction) {
     image: null,
     footer: null,
   });
-  await interaction.showModal(composeModal(asEmbed ? 4000 : 2000));
+  await interaction.showModal(
+    composeModal({
+      title: "Nachricht senden",
+      maxLength: asEmbed ? 4000 : 2000,
+      defaultTitle: interaction.options.getString("titel"),
+    }),
+  );
+}
+
+async function cmdMsg(interaction: ChatInputCommandInteraction) {
+  const user = interaction.options.getUser("user");
+  const kanal = interaction.options.getChannel("kanal");
+  const asEmbed = interaction.options.getBoolean("embed") ?? false;
+  const channelId = kanal?.id ?? (user ? null : interaction.channelId);
+  if (!channelId && !user) {
+    throw new Error("Kein Zielkanal. `/msg` in einem Textkanal nutzen oder `kanal:` setzen.");
+  }
+  saveMsgDraft(interaction.user.id, {
+    command: "msg",
+    targetUserId: user?.id ?? null,
+    channelId,
+    embed: asEmbed,
+    title: null,
+    color: parseColor(interaction.options.getString("farbe")),
+    image: null,
+    footer: null,
+  });
+  await interaction.showModal(
+    composeModal({
+      title: user ? `Nachricht an ${user.username}` : "Nachricht senden",
+      maxLength: asEmbed ? 4000 : 2000,
+    }),
+  );
 }
 
 async function cmdEmbed(interaction: ChatInputCommandInteraction) {
-  const channel = await resolveTextChannel(interaction);
+  const channelId = slashChannelId(interaction);
+  if (!channelId) throw new Error("Kein Zielkanal. `/embed` in einem Textkanal nutzen oder `kanal:` setzen.");
   saveMsgDraft(interaction.user.id, {
     command: "embed",
     targetUserId: null,
-    channelId: channel.id,
+    channelId,
     embed: true,
     title: interaction.options.getString("titel"),
     color: parseColor(interaction.options.getString("farbe")),
     image: interaction.options.getString("bild"),
     footer: interaction.options.getString("footer"),
   });
-  await interaction.showModal(composeModal(4000));
+  await interaction.showModal(
+    composeModal({
+      title: "Embed senden",
+      maxLength: 4000,
+      defaultTitle: interaction.options.getString("titel"),
+    }),
+  );
 }
 
 async function submitMsgCompose(interaction: ModalSubmitInteraction) {
   const draft = msgDrafts.get(interaction.user.id);
   msgDrafts.delete(interaction.user.id);
-  if (!draft) throw new Error("Entwurf abgelaufen. Bitte `/msg`, `/sagen` oder `/embed` nochmal ausführen.");
+  if (!draft) throw new Error("Fenster abgelaufen. Bitte `/msg` nochmal ausführen.");
   const text = formatUserText(interaction.fields.getTextInputValue("text"));
   if (!text.trim()) throw new Error("Nachricht ist leer.");
-  const payload = draft.embed
+  const fromModal = interaction.fields.getTextInputValue("title")?.trim();
+  const title = fromModal || draft.title;
+  const asEmbed = draft.embed || Boolean(title);
+  const payload = asEmbed
     ? {
         embeds: [
           customEmbed({
-            title: draft.title,
+            title,
             description: text,
             color: draft.color,
             image: draft.image,
@@ -345,11 +378,11 @@ async function submitMsgCompose(interaction: ModalSubmitInteraction) {
   }
 
   if (!sent.length) {
-    throw new Error("Kein Ziel. `/msg` mit user: oder kanal: nutzen.");
+    throw new Error("Kein Ziel. `/msg` in einem Textkanal nutzen.");
   }
 
   await interaction.reply({
-    content: `Nachricht gesendet: ${sent.join(" · ")}\nFormat: \`**fett**\` \`*kursiv*\` \`__unter__\` \`~~durch~~\` \`||spoiler||\` · Zeilenumbruch mit Enter`,
+    content: `Gesendet in ${sent.join(" · ")}.\nFormat: \`**fett**\` \`*kursiv*\` \`__unter__\` \`~~durch~~\` \`||spoiler||\` · Enter = neue Zeile`,
     flags: 64,
   });
 }

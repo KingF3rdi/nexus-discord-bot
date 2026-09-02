@@ -26,12 +26,11 @@ export const commands = [
         .addStringOption((o) => o.setName("titel").setDescription("Embed-Titel")),
     new SlashCommandBuilder()
         .setName("msg")
-        .setDescription("Textfenster mit Formatierung — Kanal oder DM")
+        .setDescription("Öffnet ein Textfenster: Nachricht eintragen und in den Kanal senden")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .addUserOption((o) => o.setName("user").setDescription("Per DM an diese Person"))
-        .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal (Standard: hier)").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement))
+        .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal (Standard: dieser Kanal)").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement))
+        .addUserOption((o) => o.setName("user").setDescription("Stattdessen per DM an diese Person"))
         .addBooleanOption((o) => o.setName("embed").setDescription("Als farbiges Embed senden"))
-        .addStringOption((o) => o.setName("titel").setDescription("Embed-/Nachrichtentitel"))
         .addStringOption((o) => o.setName("farbe").setDescription("Embed-Farbe: gruen, gelb, rot, gold oder #hex")),
     new SlashCommandBuilder()
         .setName("embed")
@@ -302,7 +301,8 @@ export function helpText() {
         "`/setup anzeigen` — aktuelle Werte",
         "",
         "**Nachrichten**",
-        "`/msg` · `/sagen` · `/embed` — Textfenster: **fett**, *kursiv*, __unter__, ~~durch~~, ||spoiler||, echte Zeilenumbrüche",
+        "`/msg` — Textfenster öffnen, Nachricht eintragen, Abschicken in diesen Kanal",
+        "`/sagen` · `/embed` — dasselbe Fenster, optional als Embed / mit Titel",
         "`/msg user:` — dieselbe Formatierung per DM",
         "",
         "**Tickets**",

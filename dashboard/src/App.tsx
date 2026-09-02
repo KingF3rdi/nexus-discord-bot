@@ -65,7 +65,7 @@ export default function App() {
   const [vouchUser, setVouchUser] = useState<string | null>(null);
   const [sayText, setSayText] = useState("");
   const [sayColor, setSayColor] = useState("#ed4245");
-  const [posted, setPosted] = useState<{ text: string; color: string }[]>([]);
+  const [posted, setPosted] = useState<{ text: string; color: string; title?: string }[]>([]);
   const [serviceOpen, setServiceOpen] = useState(10);
   const [copied, setCopied] = useState(false);
 
@@ -237,9 +237,9 @@ export default function App() {
               setSayText={setSayText}
               sayColor={sayColor}
               setSayColor={setSayColor}
-              onSend={() => {
+              onSend={(title) => {
                 if (!sayText.trim()) return;
-                setPosted((p) => [...p, { text: sayText, color: sayColor }]);
+                setPosted((p) => [...p, { text: sayText, color: sayColor, title }]);
                 setSayText("");
                 setChannel("fwm");
               }}
@@ -398,7 +398,7 @@ function VouchChannel({ selected, onSelect }: { selected: string | null; onSelec
   );
 }
 
-function WarningChannel({ extras }: { extras: { text: string; color: string }[] }) {
+function WarningChannel({ extras }: { extras: { text: string; color: string; title?: string }[] }) {
   return (
     <>
       <DiscordMessage>
@@ -420,9 +420,18 @@ function WarningChannel({ extras }: { extras: { text: string; color: string }[] 
       </DiscordMessage>
       {extras.map((m, i) => (
         <DiscordMessage key={i}>
-          <Embed color={m.color}>
-            <DiscordMarkdown text={m.text} />
-          </Embed>
+          {m.title ? (
+            <Embed color={m.color}>
+              <p className="text-[16px] font-semibold text-white">{m.title}</p>
+              <div className="mt-2">
+                <DiscordMarkdown text={m.text} />
+              </div>
+            </Embed>
+          ) : (
+            <div className="text-[16px] text-[#dbdee1]">
+              <DiscordMarkdown text={m.text} />
+            </div>
+          )}
         </DiscordMessage>
       ))}
     </>
@@ -850,9 +859,11 @@ function CommandsChannel({
   setSayText: (v: string) => void;
   sayColor: string;
   setSayColor: (v: string) => void;
-  onSend: () => void;
+  onSend: (title?: string) => void;
 }) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [msgTitle, setMsgTitle] = useState("");
 
   function wrap(before: string, after = before) {
     const el = areaRef.current;
@@ -877,6 +888,14 @@ function CommandsChannel({
     { label: "Code", hint: "`", run: () => wrap("`") },
   ];
 
+  function sendFromPanel() {
+    if (!sayText.trim()) return;
+    const title = msgTitle.trim() || undefined;
+    setPanelOpen(false);
+    setMsgTitle("");
+    onSend(title);
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4">
       <Embed color="#5865f2" footer="Diese Vorschau zeigt das Look & Feel. Der echte Bot läuft in Discord.">
@@ -885,8 +904,11 @@ function CommandsChannel({
           Rufe den Bot mit einem Token in deinem Discord-Server auf. Mehrere Ticket- und Buy-Panels können in beliebige
           Kanäle gesendet werden.
         </p>
-        <Field name="/setup setzen" value="Ticket-Kategorie, Team-Rolle, Standard-/pay-Empfänger" />
-        <Field name="/msg · /sagen · /embed" value="Textfenster: **fett**, *kursiv*, Zeilenumbrüche — Kanal oder DM" />
+        <Field
+          name="/msg"
+          value="Öffnet ein Textfenster — Nachricht eintragen, Senden postet sie in diesen Kanal"
+        />
+        <Field name="/sagen · /embed" value="Dasselbe Fenster, optional als Embed / mit Titel" />
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
@@ -903,55 +925,109 @@ function CommandsChannel({
         <Field name="/service-panel" value="Services mit Ticket-Limit (z. B. 10/10)" />
       </Embed>
       <div className="rounded-lg bg-[#2b2d31] p-4">
-        <p className="mb-2 font-semibold text-white">Nachricht als Bot senden (Vorschau)</p>
-        <p className="mb-2 text-xs text-[#949ba4]">
-          Wie in Discord: <code className="text-[#dbdee1]">**fett**</code>{" "}
-          <code className="text-[#dbdee1]">*kursiv*</code>{" "}
-          <code className="text-[#dbdee1]">__unter__</code> · Enter = neue Zeile
+        <p className="mb-2 font-semibold text-white">/msg</p>
+        <p className="mb-3 text-sm text-[#b5bac1]">
+          Wie in Discord: Befehl ausführen, Textfenster geht auf, Nachricht eintragen, <strong>Senden</strong> — landet
+          in diesem Kanal.
         </p>
-        <div className="mb-2 flex flex-wrap gap-1">
-          {marks.map((m) => (
-            <button
-              key={m.label}
-              type="button"
-              onClick={m.run}
-              title={`${m.hint}text${m.hint}`}
-              className="rounded bg-[#1e1f22] px-2 py-1 text-xs text-[#dbdee1] hover:bg-[#111214]"
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <textarea
-          ref={areaRef}
-          value={sayText}
-          onChange={(e) => setSayText(e.target.value)}
-          placeholder={"**Willkommen**\nShop ist *online*.\n||Geheimnis||"}
-          className="mb-2 h-28 w-full resize-y rounded bg-[#1e1f22] p-3 text-sm text-white outline-none"
-        />
-        {sayText.trim() ? (
-          <div className="mb-3 rounded bg-[#1e1f22] p-3">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#949ba4]">Vorschau</p>
-            <DiscordMarkdown text={sayText} />
-          </div>
-        ) : null}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[#949ba4]">Embed-Farbe</span>
-          {["#ed4245", "#23a559", "#fee75c", "#5865f2"].map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setSayColor(c)}
-              className={`h-6 w-6 rounded-full border-2 ${sayColor === c ? "border-white" : "border-transparent"}`}
-              style={{ background: c }}
-              aria-label={c}
-            />
-          ))}
-        </div>
-        <DiscordButton variant="primary" onClick={onSend}>
-          Als Bot senden
+        <DiscordButton variant="primary" onClick={() => setPanelOpen(true)}>
+          /msg
         </DiscordButton>
       </div>
+
+      {panelOpen && (
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 p-4 sm:items-center">
+          <div className="w-full max-w-[440px] overflow-hidden rounded-lg bg-[#313338] shadow-2xl">
+            <div className="flex items-center justify-between px-4 pt-4">
+              <p className="text-[20px] font-semibold text-white">Nachricht senden</p>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="text-xl leading-none text-[#b5bac1] hover:text-white"
+                aria-label="Schließen"
+              >
+                ×
+              </button>
+            </div>
+            <p className="px-4 pt-1 text-xs text-[#949ba4]">Danach erscheint die Nachricht im Kanal.</p>
+            <div className="space-y-3 p-4">
+              <label className="block">
+                <span className="mb-1 block text-[12px] font-bold uppercase tracking-wide text-[#b5bac1]">
+                  Titel <span className="font-medium normal-case text-[#80848e]">optional · macht ein Embed</span>
+                </span>
+                <input
+                  value={msgTitle}
+                  onChange={(e) => setMsgTitle(e.target.value)}
+                  placeholder="z. B. Ankündigung"
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm text-white outline-none"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[12px] font-bold uppercase tracking-wide text-[#b5bac1]">
+                  Nachricht <span className="text-[#da373c]">*</span>
+                </span>
+                <div className="mb-1 flex flex-wrap gap-1">
+                  {marks.map((m) => (
+                    <button
+                      key={m.label}
+                      type="button"
+                      onClick={m.run}
+                      title={`${m.hint}text${m.hint}`}
+                      className="rounded bg-[#1e1f22] px-2 py-1 text-xs text-[#dbdee1] hover:bg-[#111214]"
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  ref={areaRef}
+                  value={sayText}
+                  onChange={(e) => setSayText(e.target.value)}
+                  placeholder={"**Willkommen**\nShop ist *online*."}
+                  className="h-32 w-full resize-y rounded bg-[#1e1f22] p-3 text-sm text-white outline-none"
+                />
+              </label>
+              {sayText.trim() ? (
+                <div className="rounded bg-[#1e1f22] p-3">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#949ba4]">Vorschau</p>
+                  {msgTitle.trim() ? <p className="mb-1 font-semibold text-white">{msgTitle.trim()}</p> : null}
+                  <DiscordMarkdown text={sayText} />
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-[#949ba4]">Farbe</span>
+                {["#ed4245", "#23a559", "#fee75c", "#5865f2"].map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setSayColor(c)}
+                    className={`h-6 w-6 rounded-full border-2 ${sayColor === c ? "border-white" : "border-transparent"}`}
+                    style={{ background: c }}
+                    aria-label={c}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 bg-[#2b2d31] px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="rounded px-4 py-2 text-sm font-medium text-[#dbdee1] hover:underline"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={sendFromPanel}
+                disabled={!sayText.trim()}
+                className="rounded bg-[#5865f2] px-4 py-2 text-sm font-medium text-white hover:bg-[#4752c4] disabled:opacity-50"
+              >
+                Senden
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
