@@ -79,7 +79,7 @@ npm run bot
 | `/spawner emoji` / `entfernen` | Emoji setzen oder Spawner löschen |
 | `/spawner rolle` | Eigene Support-Rolle nur für Spawner-Tickets |
 | `/spawner-panel` | Spawner-Shop: Preiskacheln, Ankauf/Verkauf, STOP |
-| `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
+| `/clan panel` / `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
 | `/clan plaetze` | Maximum setzen (z. B. 30) |
 | `/clan info` / `/clan name` / `/clan preis-setzen` | Texte (Info mit Markdown) und Preise im Panel |
 | `/clan rolle` | Rolle, die bei Annahme automatisch vergeben wird |
@@ -111,7 +111,7 @@ Im geöffneten Ticket steht z. B. bei Menge 3:
 /clan plaetze anzahl:30
 /clan preis-setzen bezeichnung:Eintritt betrag:5,0M
 /clan rolle rolle:@Clan
-/clan-panel
+/clan panel
 ```
 
 Das Panel zeigt z. B. **4/30 Plätze**. Eine Bewerbung ändert die Zahl **nicht**. Erst `/clan annehmen` (oder der Button im Ticket) erhöht auf **5/30** und vergibt die Clan-Rolle. Dieselbe Person ein zweites Mal annehmen ändert nichts. `/clan kick` gibt den Platz frei und nimmt die Rolle wieder.

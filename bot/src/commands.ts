@@ -317,8 +317,16 @@ export const commands = [
   new SlashCommandBuilder()
     .setName("clan")
     .setDescription("Clan-Infos, Preise, Plätze und Bewerbungen verwalten")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.ManageRoles)
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((s) => s.setName("anzeigen").setDescription("Stand anzeigen: Plätze, Preise, Info"))
+    .addSubcommand((s) =>
+      s
+        .setName("panel")
+        .setDescription("Bewerbungspanel posten (Plätze, Preise, Button)")
+        .addChannelOption((o) =>
+          o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
+        ),
+    )
     .addSubcommand((s) =>
       s
         .setName("name")
@@ -390,8 +398,8 @@ export const commands = [
 
   new SlashCommandBuilder()
     .setName("clan-panel")
-    .setDescription("Clan-Bewerbungspanel mit Plätzen, Preisen und Infos posten")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.ManageRoles)
+    .setDescription("Clan-Bewerbungspanel posten (wie /clan panel)")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption((o) =>
       o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
     ),
@@ -430,7 +438,7 @@ export function helpText() {
     "**Clan**",
     "`/clan name` · `/clan info` (formatiert) · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
     "`/clan preis-setzen` · `/clan preis-liste` · `/clan empfaenger`",
-    "`/clan-panel` — Bewerbungspanel (Plätze nur bei Annahme, 1 Person = 1 Platz)",
+    "`/clan panel` · `/clan-panel` — Bewerbungspanel posten (Plätze nur bei Annahme, 1 Person = 1 Platz)",
     "`/clan rolle` — Rolle, die bei Annahme automatisch vergeben wird",
     "`/clan annehmen` · `/clan ablehnen` · `/clan kick` — Platz frei / belegt",
     "",

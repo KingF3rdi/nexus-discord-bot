@@ -67,7 +67,7 @@ async function registerCommands() {
   for (const guild of client.guilds.cache.values()) {
     try {
       await guild.commands.set(commands);
-      console.log(`Slash-Befehle für Server "${guild.name}" gesetzt (${commands.length}, inkl. /clan).`);
+      console.log(`Slash-Befehle für Server "${guild.name}" gesetzt (${commands.length}, inkl. /clan panel).`);
     } catch (err) {
       console.error(`Befehle für ${guild.name} fehlgeschlagen:`, err);
     }
@@ -131,7 +131,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-console.log("[Nexus] 1.0.11 start · Gateway-Intents: Guilds only");
+console.log("[Nexus] 1.0.12 start · Gateway-Intents: Guilds only");
 client.login(token).catch((err: unknown) => {
   if (isDisallowedIntents(err)) printIntentsHelp();
   else console.error(err);

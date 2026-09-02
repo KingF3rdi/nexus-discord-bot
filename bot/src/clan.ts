@@ -76,6 +76,11 @@ export async function cmdClan(interaction: ChatInputCommandInteraction) {
   const clan = getClan(guildId);
   const sub = interaction.options.getSubcommand();
 
+  if (sub === "panel") {
+    await cmdClanPanel(interaction);
+    return;
+  }
+
   if (sub === "anzeigen") {
     const filled = countAcceptedClanMembers(guildId);
     const prices = listClanPrices(guildId)

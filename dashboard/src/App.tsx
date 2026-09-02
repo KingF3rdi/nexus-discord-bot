@@ -776,7 +776,7 @@ function CommandsChannel({
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
         <Field name="/spawner rolle + /spawner-panel" value="Preiskacheln, STOP, eigene Support-Rolle für Spawner-Tickets" />
-        <Field name="/clan + /clan-panel" value="Bewerbungspanel, Plätze, Rolle bei Annahme automatisch" />
+        <Field name="/clan panel · /clan-panel" value="Bewerbungspanel posten — Plätze, Preise, Button" />
         <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />
