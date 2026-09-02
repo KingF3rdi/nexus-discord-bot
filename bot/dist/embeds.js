@@ -7,7 +7,7 @@ export function ticketPanelEmbed(config, categories) {
     const lines = categories.map((c) => `${c.emoji} **${c.name}**\n${c.description}`).join("\n\n");
     return new EmbedBuilder()
         .setColor(COLORS.green)
-        .setDescription(`${lines}\n\n🔒 **Wichtiger Hinweis**\nDu musst verifiziert sein und offene DMs haben, um ein Ticket zu öffnen.\nPro Person ist **ein aktives Support-Ticket** erlaubt (außer Bewerbungen).`)
+        .setDescription(`${lines}\n\n🔒 **Wichtiger Hinweis**\nPro Person ist **ein aktives Support-Ticket** erlaubt (außer Bewerbungen).`)
         .setFooter({ text: footer(config, "Ticket-System") });
 }
 export function ticketSelect(panelId, categories) {

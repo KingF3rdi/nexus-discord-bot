@@ -29,7 +29,6 @@ const TICKET_OPTIONS = [
   { value: "fight", label: "⚔️ Clan-Fight" },
   { value: "allianz", label: "🤝 Allianz-Anfrage" },
   { value: "gw", label: "🎉 Giveaway" },
-  { value: "verify", label: "✅ Verifizieren" },
 ];
 
 const TICKET_META: Record<string, { emoji: string; name: string; text: string }> = {
@@ -38,7 +37,6 @@ const TICKET_META: Record<string, { emoji: string; name: string; text: string }>
   fight: { emoji: "⚔️", name: "Clan-Fight", text: "Anfrage für einen Clan-Fight." },
   allianz: { emoji: "🤝", name: "Allianz-Anfrage", text: "Anfrage für eine Allianz mit FriendsWithMoney." },
   gw: { emoji: "🎉", name: "Giveaway", text: "Anliegen rund um Gewinne oder Gewinnspiele." },
-  verify: { emoji: "✅", name: "Verifizieren", text: "verknüpft deinen Discord-Account mit deinem Minecraft-Account per DM." },
 };
 
 const VOUCH_PEOPLE = [
@@ -292,12 +290,9 @@ function TicketChannel({ onSelect }: { onSelect: (key: string) => void }) {
         <p className="mb-3">Anfrage für eine Allianz mit FriendsWithMoney.</p>
         <p>🎉 <strong>Giveaway</strong></p>
         <p className="mb-3">Anliegen rund um Gewinne oder Gewinnspiele.</p>
-        <p>✅ <strong>Verifizieren</strong></p>
-        <p className="mb-3">verknüpft deinen Discord-Account mit deinem Minecraft-Account per DM.</p>
         <p>🔒 <strong>Wichtiger Hinweis</strong></p>
         <p>
-          Du musst verifiziert sein und offene DMs haben, um ein Ticket zu öffnen. Pro Person ist{" "}
-          <strong>ein aktives Support-Ticket</strong> erlaubt (außer Bewerbungen).
+          Pro Person ist <strong>ein aktives Support-Ticket</strong> erlaubt (außer Bewerbungen).
         </p>
       </Embed>
       <SelectBox placeholder="Wähle dein Anliegen aus ..." options={TICKET_OPTIONS} onChange={onSelect} />

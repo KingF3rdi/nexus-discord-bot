@@ -22,7 +22,7 @@ export function ticketPanelEmbed(
   return new EmbedBuilder()
     .setColor(COLORS.green)
     .setDescription(
-      `${lines}\n\n🔒 **Wichtiger Hinweis**\nDu musst verifiziert sein und offene DMs haben, um ein Ticket zu öffnen.\nPro Person ist **ein aktives Support-Ticket** erlaubt (außer Bewerbungen).`,
+      `${lines}\n\n🔒 **Wichtiger Hinweis**\nPro Person ist **ein aktives Support-Ticket** erlaubt (außer Bewerbungen).`,
     )
     .setFooter({ text: footer(config, "Ticket-System") });
 }

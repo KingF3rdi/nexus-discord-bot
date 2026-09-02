@@ -164,6 +164,9 @@ export function updateGuild(id: string | null | undefined, patch: Partial<GuildC
 
 export function ensureDefaultCategories(guildId: string | null | undefined) {
   const id = requireGuildId(guildId);
+  db.prepare(
+    "DELETE FROM ticket_categories WHERE guild_id = ? AND (type = 'verify' OR name = 'Verifizieren')",
+  ).run(id);
   const count = db.prepare("SELECT COUNT(*) AS c FROM ticket_categories WHERE guild_id = ?").get(id) as { c: number };
   if (count.c > 0) return;
   const defaults = [
@@ -172,7 +175,6 @@ export function ensureDefaultCategories(guildId: string | null | undefined) {
     ["Clan-Fight", "⚔️", "Anfrage für einen Clan-Fight.", "support"],
     ["Allianz-Anfrage", "🤝", "Anfrage für eine Allianz.", "support"],
     ["Giveaway", "🎉", "Anliegen rund um Gewinne oder Gewinnspiele.", "support"],
-    ["Verifizieren", "✅", "verknüpft deinen Discord-Account mit deinem Minecraft-Account per DM.", "verify"],
   ] as const;
   const insert = db.prepare(
     "INSERT INTO ticket_categories (guild_id, name, emoji, description, type, sort_order) VALUES (?, ?, ?, ?, ?, ?)",

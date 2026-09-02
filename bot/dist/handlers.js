@@ -168,7 +168,7 @@ async function cmdTicketPanel(interaction) {
     ensureDefaultCategories(interaction.guildId);
     const config = getGuild(interaction.guildId);
     const categories = db
-        .prepare("SELECT * FROM ticket_categories WHERE guild_id = ? AND enabled = 1 ORDER BY sort_order, id")
+        .prepare("SELECT * FROM ticket_categories WHERE guild_id = ? AND enabled = 1 AND type != 'verify' ORDER BY sort_order, id")
         .all(interaction.guildId);
     if (!categories.length)
         throw new Error("Lege zuerst Kategorien mit `/ticket-kategorie hinzufuegen` an.");
