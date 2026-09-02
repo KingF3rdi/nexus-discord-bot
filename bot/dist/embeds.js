@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder, } from "discord.js";
-import { COLORS, formatDateDe, formatMoney, payCommand, relativeTime, stars } from "./util.js";
+import { COLORS, formatDateDe, formatMillions, formatMoney, payCommand, relativeTime, stars } from "./util.js";
 export function footer(config, extra) {
     return extra ? `${config.community_name} · ${extra}` : `${config.community_name} · ${config.footer}`;
 }
@@ -71,6 +71,50 @@ export function paymentEmbed(opts) {
 }
 export function ticketControls(ticketId) {
     return new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setStyle(ButtonStyle.Primary).setLabel("Übernehmen"), new ButtonBuilder().setCustomId(`ticket:pay:${ticketId}`).setStyle(ButtonStyle.Success).setEmoji("💳").setLabel("Zahlungsbefehl"), new ButtonBuilder().setCustomId(`ticket:close:${ticketId}`).setStyle(ButtonStyle.Danger).setLabel("Schließen"));
+}
+export function spawnerPanelEmbed(config, spawners, notifyChannelId) {
+    const list = spawners
+        .map((s) => {
+        const buy = formatMillions(s.buy_price);
+        const sell = formatMillions(s.sell_price);
+        return `*${s.name}*\n📥 Ankaufspreis: \`${buy}\`\n📤 Verkaufspreis: \`${sell}\`\n--------------------------------`;
+    })
+        .join("\n");
+    const notify = notifyChannelId
+        ? `Aktiviere unbedingt die Benachrichtigungen in <#${notifyChannelId}>, um zu erfahren, wann wir aktiv sind.`
+        : "Aktiviere unbedingt die Benachrichtigungen, um zu erfahren, wann wir aktiv sind.";
+    return new EmbedBuilder()
+        .setColor(COLORS.green)
+        .setTitle("🧱 Spawner An-/Verkauf")
+        .setDescription([
+        "Im folgenden sind die Preise für jeden Spawner-Typen aufgelistet.",
+        "Der **Ankaufspreis** ist der Preis, für welchen wir deine Spawner ankaufen.",
+        "Der **Verkaufspreis** ist der Preis, für welchen wir dir Spawner verkaufen.",
+        "Drücke einfach auf die Buttons, um eine Anfrage zu erstellen.",
+        "",
+        "**Haftungsausschluss - Scamming**",
+        "Wir übernehmen nur Verantwortung für User in folgenden Gruppen: **FWM, FWM1, FWM2, FWM3, FWM4, FWM5, FWM6** und **FWM7**.",
+        "",
+        "**Hinweis zu Spawner-Anfragen**",
+        notify,
+        "",
+        "**Aktuelle Spawner-Arten:**",
+        "--------------------------------",
+        list || "_Keine Spawner angelegt. `/spawner setzen` nutzen._",
+    ].join("\n"))
+        .setFooter({ text: "LG Management" })
+        .setTimestamp();
+}
+export function spawnerButtons() {
+    return new ActionRowBuilder().addComponents(new ButtonBuilder()
+        .setCustomId("spawner:sell")
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("📥")
+        .setLabel("Ich möchte meine Spawner verkaufen."), new ButtonBuilder()
+        .setCustomId("spawner:buy")
+        .setStyle(ButtonStyle.Primary)
+        .setEmoji("📤")
+        .setLabel("Ich möchte Spawner kaufen."));
 }
 export function servicePanelEmbed(config, services) {
     const body = services

@@ -8,9 +8,9 @@ import {
   Mention,
   SelectBox,
 } from "./components/ui";
-import { formatMoney, payCommand, stars } from "./format";
+import { formatMillions, formatMoney, payCommand, stars } from "./format";
 
-type ChannelId = "ticket" | "map" | "vouch" | "fwm" | "giveaway" | "services" | "commands" | `kauf-${string}`;
+type ChannelId = "ticket" | "map" | "vouch" | "fwm" | "giveaway" | "services" | "spawner" | "commands" | `kauf-${string}`;
 
 type Ticket = {
   id: string;
@@ -81,6 +81,7 @@ export default function App() {
       { id: "fwm", name: "🪖FRIENDSWITHMONEY" },
       { id: "giveaway", name: "💫GIVEAWAY" },
       { id: "services", name: "🧡SERVICES" },
+      { id: "spawner", name: "🧱SPAWNER" },
       { id: "commands", name: "⚙️BEFEHLE" },
       ...extra,
     ];
@@ -226,6 +227,7 @@ export default function App() {
           {channel === "services" && (
             <ServiceChannel open={serviceOpen} onSelect={openService} />
           )}
+          {channel === "spawner" && <SpawnerChannel />}
           {channel === "commands" && (
             <CommandsChannel
               sayText={sayText}
@@ -451,6 +453,102 @@ function GiveawayChannel({
   );
 }
 
+function SpawnerChannel() {
+  const spawners: { name: string; buy: number | null; sell: number | null }[] = [
+    { name: "Blaze", buy: 4_000_000, sell: null },
+    { name: "Cow", buy: 4_000_000, sell: null },
+    { name: "Creeper", buy: 3_500_000, sell: 5_500_000 },
+    { name: "Iron", buy: 8_000_000, sell: null },
+    { name: "Piglin", buy: 4_000_000, sell: null },
+    { name: "Skelly", buy: 13_100_000, sell: 14_000_000 },
+    { name: "Spider", buy: 4_000_000, sell: null },
+  ];
+  const [dir, setDir] = useState<"buy" | "sell" | null>(null);
+  const [pick, setPick] = useState<string>("");
+  const [qty, setQty] = useState(1);
+  const chosen = spawners.find((s) => s.name === pick);
+  const unit = dir === "buy" ? chosen?.sell : chosen?.buy;
+  const total = unit != null ? unit * qty : 0;
+  const cmd = dir === "buy" ? payCommand("FriendsWithMny", total) : payCommand("DeinName", total);
+
+  return (
+    <DiscordMessage>
+      <Embed color="#23a559" footer="LG Management">
+        <p className="text-[16px] font-semibold text-white">🧱 Spawner An-/Verkauf</p>
+        <p className="mt-2">
+          Im folgenden sind die Preise für jeden Spawner-Typen aufgelistet. Der <strong>Ankaufspreis</strong> ist der
+          Preis, für welchen wir deine Spawner ankaufen. Der <strong>Verkaufspreis</strong> ist der Preis, für welchen
+          wir dir Spawner verkaufen.
+        </p>
+        <p className="mt-2">Drücke einfach auf die Buttons, um eine Anfrage zu erstellen.</p>
+        <Field
+          name="Haftungsausschluss - Scamming"
+          value="Wir übernehmen nur Verantwortung für User in folgenden Gruppen: FWM, FWM1–FWM7."
+        />
+        <Field name="Hinweis zu Spawner-Anfragen" value="Aktiviere die Benachrichtigungen, um zu erfahren, wann wir aktiv sind." />
+        <p className="mt-3 font-bold text-white">Aktuelle Spawner-Arten:</p>
+        {spawners.map((s) => (
+          <p key={s.name} className="mt-2 border-t border-[#4e5058] pt-2">
+            <em>{s.name}</em>
+            <br />
+            📥 Ankaufspreis: <Code>{formatMillions(s.buy)}</Code>
+            <br />
+            📤 Verkaufspreis: <Code>{formatMillions(s.sell)}</Code>
+          </p>
+        ))}
+      </Embed>
+      <DiscordButton
+        onClick={() => {
+          setDir("sell");
+          setPick("");
+        }}
+      >
+        📥 Ich möchte meine Spawner verkaufen.
+      </DiscordButton>
+      <DiscordButton
+        variant="primary"
+        onClick={() => {
+          setDir("buy");
+          setPick("");
+        }}
+      >
+        📤 Ich möchte Spawner kaufen.
+      </DiscordButton>
+      {dir && (
+        <div className="mt-3 max-w-[520px] rounded bg-[#2b2d31] p-3">
+          <p className="mb-2 text-sm text-white">
+            {dir === "buy" ? "Spawner kaufen" : "Spawner an uns verkaufen"}
+          </p>
+          <SelectBox
+            placeholder="Spawner auswählen ..."
+            options={spawners
+              .filter((s) => (dir === "buy" ? s.sell != null : s.buy != null))
+              .map((s) => ({ value: s.name, label: s.name }))}
+            onChange={setPick}
+            value={pick}
+          />
+          {chosen && unit != null && (
+            <>
+              <label className="mt-2 block text-xs text-[#b5bac1]">Menge</label>
+              <input
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+                className="mt-1 w-full rounded bg-[#1e1f22] px-3 py-2 text-white"
+              />
+              <p className="mt-2 text-sm">
+                Gesamt: <strong className="text-white">{formatMoney(total)}</strong> ({formatMillions(unit)} × {qty})
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded bg-[#1e1f22] p-2 font-mono text-[13px]">{cmd}</pre>
+            </>
+          )}
+        </div>
+      )}
+    </DiscordMessage>
+  );
+}
+
 function ServiceChannel({ open, onSelect }: { open: number; onSelect: (name: string) => void }) {
   const full = open >= 10;
   return (
@@ -510,6 +608,7 @@ function CommandsChannel({
         <Field name="/sagen · /embed" value="Bot schreibt deinen Text oder ein farbiges Embed" />
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
+        <Field name="/spawner setzen + /spawner-panel" value="Spawner An-/Verkauf, STOP, Ticket mit Gesamtpreis und /pay" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay Spieler Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />
         <Field name="/vouch erstellen · /vouch-panel" value="Bewertungen und Statistik-Dropdown" />

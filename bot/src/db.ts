@@ -125,6 +125,15 @@ CREATE TABLE IF NOT EXISTS panels (
   message_id TEXT NOT NULL,
   extra TEXT
 );
+
+CREATE TABLE IF NOT EXISTS spawners (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  buy_price INTEGER,
+  sell_price INTEGER,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
 `);
 
 export type GuildConfig = {
@@ -203,4 +212,38 @@ export function countOpenByService(guildId: string, serviceId: number) {
       .prepare("SELECT COUNT(*) AS c FROM tickets WHERE guild_id = ? AND service_id = ? AND status = 'open'")
       .get(guildId, serviceId) as { c: number }
   ).c;
+}
+
+export type Spawner = {
+  id: number;
+  guild_id: string;
+  name: string;
+  buy_price: number | null;
+  sell_price: number | null;
+  sort_order: number;
+};
+
+export function listSpawners(guildId: string): Spawner[] {
+  return db
+    .prepare("SELECT * FROM spawners WHERE guild_id = ? ORDER BY sort_order, name")
+    .all(guildId) as Spawner[];
+}
+
+export function ensureDefaultSpawners(guildId: string | null | undefined) {
+  const id = requireGuildId(guildId);
+  const count = (db.prepare("SELECT COUNT(*) AS c FROM spawners WHERE guild_id = ?").get(id) as { c: number }).c;
+  if (count > 0) return;
+  const defaults: [string, number, number | null][] = [
+    ["Blaze", 4_000_000, null],
+    ["Cow", 4_000_000, null],
+    ["Creeper", 3_500_000, 5_500_000],
+    ["Iron", 8_000_000, null],
+    ["Piglin", 4_000_000, null],
+    ["Skelly", 13_100_000, 14_000_000],
+    ["Spider", 4_000_000, null],
+  ];
+  const insert = db.prepare(
+    "INSERT INTO spawners (guild_id, name, buy_price, sell_price, sort_order) VALUES (?, ?, ?, ?, ?)",
+  );
+  defaults.forEach((row, i) => insert.run(id, row[0], row[1], row[2], i));
 }

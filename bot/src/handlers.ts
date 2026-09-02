@@ -58,6 +58,7 @@ import {
   resolveTextChannel,
 } from "./tickets.js";
 import { helpText } from "./commands.js";
+import { cmdSpawner, cmdSpawnerPanel, openSpawnerPicker, openSpawnerQtyModal, openSpawnerTicket } from "./spawners.js";
 
 type AnyInteraction =
   | ChatInputCommandInteraction
@@ -118,6 +119,12 @@ export async function handleChatCommand(interaction: ChatInputCommandInteraction
         break;
       case "vouch-panel":
         await cmdVouchPanel(interaction);
+        break;
+      case "spawner":
+        await cmdSpawner(interaction);
+        break;
+      case "spawner-panel":
+        await cmdSpawnerPanel(interaction);
         break;
       case "pay":
         await cmdPay(interaction);
@@ -595,6 +602,10 @@ export async function handleButton(interaction: ButtonInteraction) {
       await openBuyModal(interaction, Number(action));
       return;
     }
+    if (kind === "spawner" && (action === "sell" || action === "buy")) {
+      await openSpawnerPicker(interaction, action);
+      return;
+    }
     if (kind === "gw" && action === "join") {
       await joinGiveaway(interaction, Number(rawId));
       return;
@@ -622,6 +633,10 @@ export async function handleSelect(interaction: StringSelectMenuInteraction) {
   try {
     if (interaction.customId.startsWith("ticket:select")) {
       await openSupportTicket(interaction, Number(interaction.values[0]));
+      return;
+    }
+    if (interaction.customId.startsWith("spawner:pick:")) {
+      await openSpawnerQtyModal(interaction);
       return;
     }
     if (interaction.customId === "service:select") {
@@ -678,6 +693,13 @@ export async function handleModal(interaction: import("discord.js").ModalSubmitI
       const qty = Number(interaction.fields.getTextInputValue("qty"));
       if (!Number.isInteger(qty) || qty < 1 || qty > 99) throw new Error("Bitte eine Menge zwischen 1 und 99 eingeben.");
       await openBuyTicket(interaction, productId, qty);
+      return;
+    }
+    if (interaction.customId.startsWith("spawner:qty:")) {
+      const parts = interaction.customId.split(":");
+      const direction = parts[2] === "buy" ? "buy" : "sell";
+      const spawnerId = Number(parts[3]);
+      await openSpawnerTicket(interaction, direction, spawnerId);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Fehler.";
@@ -881,12 +903,12 @@ async function repostPay(interaction: ButtonInteraction, ticketId: number) {
         user_id: string;
       }
     | undefined;
-  if (!ticket || ticket.type !== "buy" || !ticket.total || !ticket.pay_recipient) {
+  if (!ticket || !ticket.total || !ticket.pay_recipient) {
     throw new Error("Für dieses Ticket gibt es keine Zahlung.");
   }
   const product = ticket.product_id
     ? (db.prepare("SELECT name, sku FROM products WHERE id = ?").get(ticket.product_id) as { name: string; sku: string | null })
-    : { name: "Bestellung", sku: null };
+    : { name: ticket.type.startsWith("spawner") ? "Spawner" : "Bestellung", sku: null };
   const config = getGuild(interaction.guildId);
   await interaction.reply({
     embeds: [

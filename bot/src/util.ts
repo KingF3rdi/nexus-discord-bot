@@ -17,6 +17,27 @@ export function payCommand(recipient: string, amount: number): string {
   return `/pay ${cleanRecipient} ${Math.round(amount)}`;
 }
 
+/** 4000000 → 4,0M · null → STOP */
+export function formatMillions(amount: number | null | undefined): string {
+  if (amount == null || amount < 0) return "STOP";
+  return `${(amount / 1_000_000).toFixed(1).replace(".", ",")}M`;
+}
+
+/** 4,0M / 4000000 / STOP → number or null (disabled) */
+export function parsePrice(input: string): number | null {
+  const t = input.trim().toUpperCase().replace(/\s/g, "");
+  if (!t || t === "STOP" || t === "-" || t === "AUS") return null;
+  if (t.endsWith("M")) {
+    const num = Number(t.slice(0, -1).replace(",", "."));
+    if (!Number.isFinite(num) || num < 0) throw new Error(`Ungültiger Preis: ${input}`);
+    return Math.round(num * 1_000_000);
+  }
+  const raw = t.replace(/\./g, "").replace(",", ".");
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Ungültiger Preis: ${input}`);
+  return Math.round(n);
+}
+
 export function shortId(length = 7): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   let id = "";

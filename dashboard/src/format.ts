@@ -2,6 +2,11 @@ export function formatMoney(amount: number): string {
   return `$${Math.round(amount).toLocaleString("de-DE")}`;
 }
 
+export function formatMillions(amount: number | null): string {
+  if (amount == null || amount < 0) return "STOP";
+  return `${(amount / 1_000_000).toFixed(1).replace(".", ",")}M`;
+}
+
 export function payCommand(recipient: string, amount: number): string {
   return `/pay ${recipient.replace(/^@/, "")} ${Math.round(amount)}`;
 }

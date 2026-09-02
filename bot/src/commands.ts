@@ -234,7 +234,40 @@ export const commands = [
     ),
 
   new SlashCommandBuilder()
-    .setName("help")
+    .setName("spawner")
+    .setDescription("Spawner-Preise für das An-/Verkauf-Panel")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addSubcommand((s) =>
+      s
+        .setName("setzen")
+        .setDescription("Spawner anlegen oder Preis ändern (STOP = nicht verfügbar)")
+        .addStringOption((o) => o.setName("name").setDescription("z. B. Skelly").setRequired(true))
+        .addStringOption((o) => o.setName("ankauf").setDescription("Ankaufspreis, z. B. 4,0M oder STOP").setRequired(true))
+        .addStringOption((o) => o.setName("verkauf").setDescription("Verkaufspreis, z. B. 5,5M oder STOP").setRequired(true)),
+    )
+    .addSubcommand((s) => s.setName("liste").setDescription("Alle Spawner-Preise anzeigen"))
+    .addSubcommand((s) =>
+      s
+        .setName("entfernen")
+        .setDescription("Spawner löschen")
+        .addStringOption((o) => o.setName("name").setDescription("Name").setRequired(true)),
+    ),
+
+  new SlashCommandBuilder()
+    .setName("spawner-panel")
+    .setDescription("Spawner An-/Verkauf-Panel mit Buttons senden")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addChannelOption((o) =>
+      o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
+    )
+    .addChannelOption((o) =>
+      o
+        .setName("benachrichtigung")
+        .setDescription("Kanal für den Hinweis (z. B. #BENACHRICHTIGUNG)")
+        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
+    ),
+
+  new SlashCommandBuilder()
     .setDescription("Alle Befehle des Bots anzeigen"),
 ].map((c) => c.toJSON());
 
@@ -258,6 +291,7 @@ export function helpText() {
     "**Shop / Buy-Panels**",
     "`/produkt erstellen` — Preis, Verkäufer, /pay-Empfänger",
     "`/buy-panel` — Kauf-Button posten (mehrere Panels möglich)",
+    "`/spawner setzen` + `/spawner-panel` — An-/Verkauf mit STOP und /pay im Ticket",
     "Im Ticket: Gesamtpreis × Menge und kopierbarer `/pay`-Befehl",
     "`/pay` — Zahlungsanfrage manuell posten",
     "",

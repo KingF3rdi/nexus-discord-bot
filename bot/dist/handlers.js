@@ -4,6 +4,7 @@ import { countOpenByService, db, ensureDefaultCategories, getGuild, requireGuild
 import { COLORS, formatMoney, parseColor, parseDuration, payCommand, shortId, stars, } from "./util.js";
 import { assertCanOpenSupportTicket, assertServiceCapacity, createTicketChannel, getTicketByChannel, insertTicket, isStaff, resolveTextChannel, } from "./tickets.js";
 import { helpText } from "./commands.js";
+import { cmdSpawner, cmdSpawnerPanel, openSpawnerPicker, openSpawnerQtyModal, openSpawnerTicket } from "./spawners.js";
 async function replyError(interaction, message) {
     const payload = { embeds: [warningEmbed(message, COLORS.red)], flags: 64 };
     if (interaction.deferred || interaction.replied) {
@@ -56,6 +57,12 @@ export async function handleChatCommand(interaction) {
                 break;
             case "vouch-panel":
                 await cmdVouchPanel(interaction);
+                break;
+            case "spawner":
+                await cmdSpawner(interaction);
+                break;
+            case "spawner-panel":
+                await cmdSpawnerPanel(interaction);
                 break;
             case "pay":
                 await cmdPay(interaction);
@@ -417,6 +424,10 @@ export async function handleButton(interaction) {
             await openBuyModal(interaction, Number(action));
             return;
         }
+        if (kind === "spawner" && (action === "sell" || action === "buy")) {
+            await openSpawnerPicker(interaction, action);
+            return;
+        }
         if (kind === "gw" && action === "join") {
             await joinGiveaway(interaction, Number(rawId));
             return;
@@ -445,6 +456,10 @@ export async function handleSelect(interaction) {
     try {
         if (interaction.customId.startsWith("ticket:select")) {
             await openSupportTicket(interaction, Number(interaction.values[0]));
+            return;
+        }
+        if (interaction.customId.startsWith("spawner:pick:")) {
+            await openSpawnerQtyModal(interaction);
             return;
         }
         if (interaction.customId === "service:select") {
@@ -500,6 +515,13 @@ export async function handleModal(interaction) {
             if (!Number.isInteger(qty) || qty < 1 || qty > 99)
                 throw new Error("Bitte eine Menge zwischen 1 und 99 eingeben.");
             await openBuyTicket(interaction, productId, qty);
+            return;
+        }
+        if (interaction.customId.startsWith("spawner:qty:")) {
+            const parts = interaction.customId.split(":");
+            const direction = parts[2] === "buy" ? "buy" : "sell";
+            const spawnerId = Number(parts[3]);
+            await openSpawnerTicket(interaction, direction, spawnerId);
         }
     }
     catch (err) {
@@ -664,12 +686,12 @@ async function claimTicket(interaction, ticketId) {
 }
 async function repostPay(interaction, ticketId) {
     const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(ticketId);
-    if (!ticket || ticket.type !== "buy" || !ticket.total || !ticket.pay_recipient) {
+    if (!ticket || !ticket.total || !ticket.pay_recipient) {
         throw new Error("Für dieses Ticket gibt es keine Zahlung.");
     }
     const product = ticket.product_id
         ? db.prepare("SELECT name, sku FROM products WHERE id = ?").get(ticket.product_id)
-        : { name: "Bestellung", sku: null };
+        : { name: ticket.type.startsWith("spawner") ? "Spawner" : "Bestellung", sku: null };
     const config = getGuild(interaction.guildId);
     await interaction.reply({
         embeds: [

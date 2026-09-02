@@ -77,6 +77,8 @@ npm run bot
 | `/ticket-panel` | Ticket-Panel senden (mehrfach möglich) |
 | `/produkt erstellen` | Name, Preis, Verkäufer, Minecraft-Empfänger, Bild |
 | `/buy-panel` | Kauf-Panel für eine Produkt-ID senden |
+| `/spawner setzen` | Ankauf-/Verkaufspreis (z. B. `13,1M` oder `STOP`) |
+| `/spawner-panel` | Spawner An-/Verkauf mit zwei Buttons |
 | `/pay` | Zahlungsanfrage mit Gesamtbetrag posten |
 | `/giveaway starten` | Gewinnspiel mit Button |
 | `/vouch erstellen` / `/vouch-panel` | Bewertung bzw. Statistik-Panel |

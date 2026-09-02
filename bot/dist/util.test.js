@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatMoney, parseDuration, payCommand, stars } from "./util.js";
+import { formatMillions, formatMoney, parseDuration, parsePrice, payCommand, stars } from "./util.js";
 test("formatiert Preise deutsch", () => {
     assert.equal(formatMoney(6_000_000), "$6.000.000");
     assert.equal(formatMoney(12300), "$12.300");
@@ -19,4 +19,12 @@ test("parst Dauerangaben", () => {
 test("Sterne 1–5", () => {
     assert.equal(stars(5), "⭐⭐⭐⭐⭐  5/5");
     assert.equal(stars(3), "⭐⭐⭐☆☆  3/5");
+});
+test("Spawner-Preise in Millionen", () => {
+    assert.equal(formatMillions(4_000_000), "4,0M");
+    assert.equal(formatMillions(13_100_000), "13,1M");
+    assert.equal(formatMillions(null), "STOP");
+    assert.equal(parsePrice("4,0M"), 4_000_000);
+    assert.equal(parsePrice("STOP"), null);
+    assert.equal(parsePrice("13100000"), 13_100_000);
 });
