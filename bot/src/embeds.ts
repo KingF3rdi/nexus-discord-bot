@@ -207,6 +207,59 @@ export function spawnerButtons() {
   );
 }
 
+export function clanPanelEmbed(
+  config: { community_name: string; footer: string },
+  clan: { name: string; info: string; max_slots: number },
+  filled: number,
+  prices: { label: string; amount: number }[],
+) {
+  const full = filled >= clan.max_slots;
+  const slotLine = full
+    ? `🔴 **${filled}/${clan.max_slots} Plätze – Clan ist voll**`
+    : `🟢 **${filled}/${clan.max_slots} Plätze**`;
+  const priceLines =
+    prices.map((p) => `• **${p.label}:** \`${formatMillions(p.amount)}\` (${formatMoney(p.amount)})`).join("\n") ||
+    "_Keine Preise. `/clan preis-setzen`_";
+  return new EmbedBuilder()
+    .setColor(full ? COLORS.red : COLORS.green)
+    .setTitle(`🤝 Clan-Bewerbung · ${clan.name}`)
+    .setDescription(
+      [
+        slotLine,
+        "",
+        clan.info,
+        "",
+        "**Preise**",
+        priceLines,
+        "",
+        "🔒 **Hinweis**",
+        "Jede Person zählt **nur einmal**. Doppelte oder erneute Bewerbungen erhöhen die Platzzahl nicht.",
+        full ? "\nDer Clan nimmt derzeit **keine** neuen Mitglieder auf." : "Klicke auf den Button, um dich zu bewerben.",
+      ].join("\n"),
+    )
+    .setFooter({ text: `${config.community_name} · Clan-System` })
+    .setTimestamp();
+}
+
+export function clanApplyButton(disabled: boolean) {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("clan:apply")
+      .setStyle(ButtonStyle.Success)
+      .setEmoji("📝")
+      .setLabel(disabled ? "Clan ist voll" : "Jetzt bewerben")
+      .setDisabled(disabled),
+  );
+}
+
+export function clanTicketControls(userId: string) {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`clan:accept:${userId}`).setStyle(ButtonStyle.Success).setLabel("Annehmen"),
+    new ButtonBuilder().setCustomId(`clan:reject:${userId}`).setStyle(ButtonStyle.Secondary).setLabel("Ablehnen"),
+    new ButtonBuilder().setCustomId(`clan:kick:${userId}`).setStyle(ButtonStyle.Danger).setLabel("Platz entfernen"),
+  );
+}
+
 export function servicePanelEmbed(
   config: GuildConfig,
   services: { name: string; emoji: string; description: string; important?: string | null; enabled: number; open: number; max_open: number }[],

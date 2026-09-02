@@ -59,6 +59,7 @@ import {
 } from "./tickets.js";
 import { helpText } from "./commands.js";
 import { cmdSpawner, cmdSpawnerPanel, openSpawnerPicker, openSpawnerQtyModal, openSpawnerTicket } from "./spawners.js";
+import { cmdClan, cmdClanPanel, handleClanDecision, openClanApplyModal, submitClanApplication } from "./clan.js";
 
 type AnyInteraction =
   | ChatInputCommandInteraction
@@ -125,6 +126,12 @@ export async function handleChatCommand(interaction: ChatInputCommandInteraction
         break;
       case "spawner-panel":
         await cmdSpawnerPanel(interaction);
+        break;
+      case "clan":
+        await cmdClan(interaction);
+        break;
+      case "clan-panel":
+        await cmdClanPanel(interaction);
         break;
       case "pay":
         await cmdPay(interaction);
@@ -622,6 +629,14 @@ export async function handleButton(interaction: ButtonInteraction) {
       await repostPay(interaction, Number(rawId));
       return;
     }
+    if (kind === "clan" && action === "apply") {
+      await openClanApplyModal(interaction);
+      return;
+    }
+    if (kind === "clan" && (action === "accept" || action === "reject" || action === "kick") && rawId) {
+      await handleClanDecision(interaction, action, rawId);
+      return;
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Fehler.";
     await replyError(interaction, message);
@@ -700,6 +715,10 @@ export async function handleModal(interaction: import("discord.js").ModalSubmitI
       const direction = parts[2] === "buy" ? "buy" : "sell";
       const spawnerId = Number(parts[3]);
       await openSpawnerTicket(interaction, direction, spawnerId);
+      return;
+    }
+    if (interaction.customId === "clan:apply") {
+      await submitClanApplication(interaction);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Fehler.";

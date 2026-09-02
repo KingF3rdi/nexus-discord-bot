@@ -5,6 +5,7 @@ import { COLORS, formatMoney, parseColor, parseDuration, payCommand, shortId, st
 import { assertCanOpenSupportTicket, assertServiceCapacity, createTicketChannel, getTicketByChannel, insertTicket, isStaff, resolveTextChannel, } from "./tickets.js";
 import { helpText } from "./commands.js";
 import { cmdSpawner, cmdSpawnerPanel, openSpawnerPicker, openSpawnerQtyModal, openSpawnerTicket } from "./spawners.js";
+import { cmdClan, cmdClanPanel, handleClanDecision, openClanApplyModal, submitClanApplication } from "./clan.js";
 async function replyError(interaction, message) {
     const payload = { embeds: [warningEmbed(message, COLORS.red)], flags: 64 };
     if (interaction.deferred || interaction.replied) {
@@ -63,6 +64,12 @@ export async function handleChatCommand(interaction) {
                 break;
             case "spawner-panel":
                 await cmdSpawnerPanel(interaction);
+                break;
+            case "clan":
+                await cmdClan(interaction);
+                break;
+            case "clan-panel":
+                await cmdClanPanel(interaction);
                 break;
             case "pay":
                 await cmdPay(interaction);
@@ -444,6 +451,14 @@ export async function handleButton(interaction) {
             await repostPay(interaction, Number(rawId));
             return;
         }
+        if (kind === "clan" && action === "apply") {
+            await openClanApplyModal(interaction);
+            return;
+        }
+        if (kind === "clan" && (action === "accept" || action === "reject" || action === "kick") && rawId) {
+            await handleClanDecision(interaction, action, rawId);
+            return;
+        }
     }
     catch (err) {
         const message = err instanceof Error ? err.message : "Fehler.";
@@ -522,6 +537,10 @@ export async function handleModal(interaction) {
             const direction = parts[2] === "buy" ? "buy" : "sell";
             const spawnerId = Number(parts[3]);
             await openSpawnerTicket(interaction, direction, spawnerId);
+            return;
+        }
+        if (interaction.customId === "clan:apply") {
+            await submitClanApplication(interaction);
         }
     }
     catch (err) {

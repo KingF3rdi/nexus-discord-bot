@@ -10,7 +10,7 @@ import {
 } from "./components/ui";
 import { formatMillions, formatMoney, payCommand, stars } from "./format";
 
-type ChannelId = "ticket" | "map" | "vouch" | "fwm" | "giveaway" | "services" | "spawner" | "commands" | `kauf-${string}`;
+type ChannelId = "ticket" | "map" | "vouch" | "fwm" | "giveaway" | "services" | "spawner" | "clan" | "commands" | `kauf-${string}`;
 
 type Ticket = {
   id: string;
@@ -82,12 +82,13 @@ export default function App() {
       { id: "giveaway", name: "💫GIVEAWAY" },
       { id: "services", name: "🧡SERVICES" },
       { id: "spawner", name: "🧱SPAWNER" },
+      { id: "clan", name: "🤝CLAN" },
       { id: "commands", name: "⚙️BEFEHLE" },
       ...extra,
     ];
   }, [tickets]);
 
-  const header = channels.find((c) => c.id === channel)?.name.replace(/^[^\w🎫🖼️🤍🪖💫🧡⚙️🛒]+/, "") ?? channel;
+  const header = channels.find((c) => c.id === channel)?.name.replace(/^[^\w🎫🖼️🤍🪖💫🧡⚙️🛒🤝]+/, "") ?? channel;
 
   function openSupport(key: string) {
     const meta = TICKET_META[key];
@@ -228,6 +229,7 @@ export default function App() {
             <ServiceChannel open={serviceOpen} onSelect={openService} />
           )}
           {channel === "spawner" && <SpawnerChannel />}
+          {channel === "clan" && <ClanChannel />}
           {channel === "commands" && (
             <CommandsChannel
               sayText={sayText}
@@ -549,6 +551,117 @@ function SpawnerChannel() {
   );
 }
 
+function ClanChannel() {
+  const max = 30;
+  const [filled, setFilled] = useState(4);
+  const [phase, setPhase] = useState<"idle" | "pending" | "accepted">("idle");
+  const [hint, setHint] = useState<string | null>(null);
+  const full = filled >= max;
+  const slotLine = full
+    ? `🔴 **${filled}/${max} Plätze – Clan ist voll**`
+    : `🟢 **${filled}/${max} Plätze**`;
+
+  function apply() {
+    if (phase === "accepted") {
+      setHint("Du bist bereits im Clan. Dein Platz ist gezählt — eine zweite Bewerbung ändert die Zahl nicht.");
+      return;
+    }
+    if (phase === "pending") {
+      setHint("Du hast schon eine offene Bewerbung. Plätze bleiben unverändert, bis das Team annimmt.");
+      return;
+    }
+    if (full) {
+      setHint(`Clan ist voll (${filled}/${max}).`);
+      return;
+    }
+    setPhase("pending");
+    setHint(`Bewerbung offen. Plätze unverändert ${filled}/${max} bis zur Annahme.`);
+  }
+
+  function accept() {
+    if (phase === "accepted") {
+      setHint(`War bereits angenommen — Platz wurde nicht doppelt gezählt. Weiter ${filled}/${max}.`);
+      return;
+    }
+    const next = filled + 1;
+    setFilled(next);
+    setPhase("accepted");
+    setHint(`Angenommen. Plätze jetzt ${next}/${max}.`);
+  }
+
+  function reject() {
+    setPhase("idle");
+    setHint(`Abgelehnt. Plätze unverändert ${filled}/${max}.`);
+  }
+
+  function kick() {
+    if (phase === "accepted") {
+      const next = Math.max(0, filled - 1);
+      setFilled(next);
+      setPhase("idle");
+      setHint(`Platz entfernt. Plätze jetzt ${next}/${max}.`);
+      return;
+    }
+    setPhase("idle");
+    setHint(`Kein Platz belegt. Weiter ${filled}/${max}.`);
+  }
+
+  return (
+    <>
+      <DiscordMessage>
+        <Embed color={full ? "#ed4245" : "#23a559"} footer="FriendsWithMoney · Clan-System">
+          <p className="text-[16px] font-semibold text-white">🤝 Clan-Bewerbung · FriendsWithMoney</p>
+          <p className="mt-2">{slotLine}</p>
+          <p className="mt-3">
+            Wir suchen aktive Spieler für PvP, Farm und Teamplay. Bewirb dich unten — ein Platz zählt nur einmal pro
+            Person.
+          </p>
+          <p className="mt-3 font-semibold text-white">Preise</p>
+          <p className="mt-1">
+            • <strong>Eintritt:</strong> <Code>5,0M</Code> ($5.000.000)
+          </p>
+          <p>
+            • <strong>Wöchentliche Abgabe:</strong> <Code>2,0M</Code> ($2.000.000)
+          </p>
+          <p className="mt-3 text-[#b5bac1]">
+            🔒 Jede Person zählt nur einmal. Doppelte oder erneute Bewerbungen erhöhen die Platzzahl nicht.
+          </p>
+        </Embed>
+        <DiscordButton onClick={apply} disabled={full && phase !== "accepted"}>
+          {full ? "Clan ist voll" : "Jetzt bewerben"}
+        </DiscordButton>
+      </DiscordMessage>
+      {phase !== "idle" && (
+        <DiscordMessage>
+          <Embed color="#23a559" footer="FriendsWithMoney · Clan-Bewerbung">
+            <p className="text-[16px] font-semibold text-white">🤝 Bewerbung · FriendsWithMoney</p>
+            <p className="mt-2">
+              Hallo <Mention>@Du</Mention>
+            </p>
+            <p className="mt-2">
+              <strong>Plätze aktuell:</strong> {filled}/{max} — nach Annahme zählt diese Person einmal.
+            </p>
+            <Field name="Minecraft" value={<Code>DeinName</Code>} />
+            <Field name="Über dich" value="PvP + Farm, täglich online." />
+          </Embed>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <DiscordButton onClick={accept}>Annehmen</DiscordButton>
+            <DiscordButton variant="secondary" onClick={reject}>
+              Ablehnen
+            </DiscordButton>
+            <DiscordButton variant="danger" onClick={kick}>
+              Platz entfernen
+            </DiscordButton>
+          </div>
+        </DiscordMessage>
+      )}
+      {hint && (
+        <p className="mx-4 mt-2 max-w-[520px] rounded bg-[#2b2d31] px-3 py-2 text-sm text-[#dbdee1]">{hint}</p>
+      )}
+    </>
+  );
+}
+
 function ServiceChannel({ open, onSelect }: { open: number; onSelect: (name: string) => void }) {
   const full = open >= 10;
   return (
@@ -609,6 +722,7 @@ function CommandsChannel({
         <Field name="/ticket-panel" value="Dropdown wie in #TICKET — beliebig oft, in jeden Kanal" />
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner setzen + /spawner-panel" value="Spawner An-/Verkauf, STOP, Ticket mit Gesamtpreis und /pay" />
+        <Field name="/clan + /clan-panel" value="Bewerbungspanel: Info, Preise, Plätze 4/30 — nur angenommene zählen, nie doppelt" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay Spieler Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />
         <Field name="/vouch erstellen · /vouch-panel" value="Bewertungen und Statistik-Dropdown" />

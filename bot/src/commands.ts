@@ -268,7 +268,85 @@ export const commands = [
     ),
 
   new SlashCommandBuilder()
-    .setDescription("Alle Befehle des Bots anzeigen"),
+    .setName("clan")
+    .setDescription("Clan-Infos, Preise, Plätze und Bewerbungen verwalten")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addSubcommand((s) => s.setName("anzeigen").setDescription("Stand anzeigen: Plätze, Preise, Info"))
+    .addSubcommand((s) =>
+      s
+        .setName("name")
+        .setDescription("Clan-Namen setzen")
+        .addStringOption((o) => o.setName("text").setDescription("z. B. FriendsWithMoney").setRequired(true).setMaxLength(80)),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("info")
+        .setDescription("Clan-Beschreibung für das Panel setzen")
+        .addStringOption((o) =>
+          o.setName("text").setDescription("Was der Clan anbietet / Regeln").setRequired(true).setMaxLength(1800),
+        ),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("plaetze")
+        .setDescription("Maximale Plätze setzen (Anzeige z. B. 4/30)")
+        .addIntegerOption((o) =>
+          o.setName("anzahl").setDescription("Maximum, z. B. 30").setRequired(true).setMinValue(1).setMaxValue(500),
+        ),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("empfaenger")
+        .setDescription("Minecraft-Empfänger für Clan-Eintritt (/pay)")
+        .addStringOption((o) => o.setName("name").setDescription("Minecraft-Name").setRequired(true).setMaxLength(32)),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("preis-setzen")
+        .setDescription("Einen Clan-Preis setzen oder überschreiben")
+        .addStringOption((o) =>
+          o.setName("bezeichnung").setDescription("z. B. Eintritt, Wöchentliche Abgabe").setRequired(true).setMaxLength(80),
+        )
+        .addStringOption((o) =>
+          o.setName("betrag").setDescription("z. B. 5,0M oder 2000000").setRequired(true),
+        ),
+    )
+    .addSubcommand((s) => s.setName("preis-liste").setDescription("Alle Clan-Preise mit IDs anzeigen"))
+    .addSubcommand((s) =>
+      s
+        .setName("preis-entfernen")
+        .setDescription("Einen Clan-Preis per ID entfernen")
+        .addIntegerOption((o) => o.setName("id").setDescription("ID aus /clan preis-liste").setRequired(true)),
+    )
+    .addSubcommand((s) => s.setName("liste").setDescription("Angenommene, offene und abgelehnte Bewerbungen"))
+    .addSubcommand((s) =>
+      s
+        .setName("annehmen")
+        .setDescription("Bewerbung annehmen (belegt 1 Platz; doppelt zählt nicht)")
+        .addUserOption((o) => o.setName("user").setDescription("Bewerber").setRequired(true)),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("ablehnen")
+        .setDescription("Bewerbung ablehnen (kein Platz)")
+        .addUserOption((o) => o.setName("user").setDescription("Bewerber").setRequired(true)),
+    )
+    .addSubcommand((s) =>
+      s
+        .setName("kick")
+        .setDescription("Mitglied entfernen — Platz wird frei")
+        .addUserOption((o) => o.setName("user").setDescription("Mitglied").setRequired(true)),
+    ),
+
+  new SlashCommandBuilder()
+    .setName("clan-panel")
+    .setDescription("Clan-Bewerbungspanel mit Plätzen, Preisen und Infos posten")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addChannelOption((o) =>
+      o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement),
+    ),
+
+  new SlashCommandBuilder().setName("help").setDescription("Alle Befehle des Bots anzeigen"),
 ].map((c) => c.toJSON());
 
 export function helpText() {
@@ -294,6 +372,12 @@ export function helpText() {
     "`/spawner setzen` + `/spawner-panel` — An-/Verkauf mit STOP und /pay im Ticket",
     "Im Ticket: Gesamtpreis × Menge und kopierbarer `/pay`-Befehl",
     "`/pay` — Zahlungsanfrage manuell posten",
+    "",
+    "**Clan**",
+    "`/clan name` · `/clan info` · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
+    "`/clan preis-setzen` · `/clan preis-liste` · `/clan empfaenger`",
+    "`/clan-panel` — Bewerbungspanel (Plätze nur bei Annahme, 1 Person = 1 Platz)",
+    "`/clan annehmen` · `/clan ablehnen` · `/clan kick` — Platz frei / belegt",
     "",
     "**Giveaways & Vouches**",
     "`/giveaway starten` · `/giveaway beenden` · `/giveaway reroll`",

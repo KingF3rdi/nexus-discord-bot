@@ -19,6 +19,7 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 - **Giveaways** — Start mit Dauer (`7h`, `30m`, `1d`), Teilnehmen-Button, automatische Auslosung, Reroll.
 - **Vouches** — Bewertung mit Sternen, Produkt, Menge, Preis; Panel zum Nachschlagen von Käufer-/Verkäufer-Statistik.
 - **Services** — z. B. Bau-Service mit Limit (`10/10 Tickets – Limit erreicht`).
+- **Clan-Bewerbungen** — Panel mit Infos, Preisen und Plätzen (`4/30`). Es zählen nur **angenommene** Mitglieder, und **jede Person nur einmal**. Admins stellen Name, Info, Maximum und Preise per `/clan` ein.
 
 ## Bot-Host (Git)
 
@@ -79,6 +80,10 @@ npm run bot
 | `/buy-panel` | Kauf-Panel für eine Produkt-ID senden |
 | `/spawner setzen` | Ankauf-/Verkaufspreis (z. B. `13,1M` oder `STOP`) |
 | `/spawner-panel` | Spawner An-/Verkauf mit zwei Buttons |
+| `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
+| `/clan plaetze` | Maximum setzen (z. B. 30) |
+| `/clan info` / `/clan name` / `/clan preis-setzen` | Texte und Preise im Panel |
+| `/clan annehmen` / `ablehnen` / `kick` | Platz belegen, ablehnen oder wieder freigeben |
 | `/pay` | Zahlungsanfrage mit Gesamtbetrag posten |
 | `/giveaway starten` | Gewinnspiel mit Button |
 | `/vouch erstellen` / `/vouch-panel` | Bewertung bzw. Statistik-Panel |
@@ -97,6 +102,18 @@ Im geöffneten Ticket steht z. B. bei Menge 3:
 - Einzelpreis **$6.000.000**
 - Gesamt **$18.000.000**
 - Befehl `/pay FriendsWithMny 18000000`
+
+### Clan-Bewerbung
+
+```
+/clan name text:FriendsWithMoney
+/clan info text:Aktiver Money-Clan. Fairer Support, klare Preise.
+/clan plaetze anzahl:30
+/clan preis-setzen bezeichnung:Eintritt betrag:5,0M
+/clan-panel
+```
+
+Das Panel zeigt z. B. **4/30 Plätze**. Eine Bewerbung ändert die Zahl **nicht**. Erst `/clan annehmen` (oder der Button im Ticket) erhöht auf **5/30**. Dieselbe Person ein zweites Mal annehmen ändert nichts. `/clan kick` gibt den Platz wieder frei.
 
 ## Web-Vorschau
 

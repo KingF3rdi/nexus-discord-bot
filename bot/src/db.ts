@@ -134,6 +134,37 @@ CREATE TABLE IF NOT EXISTS spawners (
   sell_price INTEGER,
   sort_order INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS clan_config (
+  guild_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT 'FriendsWithMoney',
+  info TEXT NOT NULL DEFAULT 'Wir suchen aktive Spieler für PvP, Farm und Teamplay. Bewirb dich unten — ein Platz zählt nur einmal pro Person.',
+  max_slots INTEGER NOT NULL DEFAULT 30,
+  pay_recipient TEXT
+);
+
+CREATE TABLE IF NOT EXISTS clan_prices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS clan_applications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  ign TEXT,
+  note TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  ticket_channel_id TEXT,
+  ticket_id INTEGER,
+  decided_by TEXT,
+  created_at INTEGER NOT NULL,
+  decided_at INTEGER,
+  UNIQUE(guild_id, user_id)
+);
 `);
 
 export type GuildConfig = {
@@ -246,4 +277,60 @@ export function ensureDefaultSpawners(guildId: string | null | undefined) {
     "INSERT INTO spawners (guild_id, name, buy_price, sell_price, sort_order) VALUES (?, ?, ?, ?, ?)",
   );
   defaults.forEach((row, i) => insert.run(id, row[0], row[1], row[2], i));
+}
+
+export type ClanConfig = {
+  guild_id: string;
+  name: string;
+  info: string;
+  max_slots: number;
+  pay_recipient: string | null;
+};
+
+export type ClanPrice = { id: number; guild_id: string; label: string; amount: number; sort_order: number };
+
+export function getClan(guildId: string | null | undefined): ClanConfig {
+  const id = requireGuildId(guildId);
+  let row = db.prepare("SELECT * FROM clan_config WHERE guild_id = ?").get(id) as ClanConfig | undefined;
+  if (!row) {
+    db.prepare("INSERT INTO clan_config (guild_id) VALUES (?)").run(id);
+    row = db.prepare("SELECT * FROM clan_config WHERE guild_id = ?").get(id) as ClanConfig;
+  }
+  const priceCount = (db.prepare("SELECT COUNT(*) AS c FROM clan_prices WHERE guild_id = ?").get(id) as { c: number }).c;
+  if (priceCount === 0) {
+    db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, ?)").run(
+      id,
+      "Eintritt",
+      5_000_000,
+      0,
+    );
+    db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, ?)").run(
+      id,
+      "Wöchentliche Abgabe",
+      2_000_000,
+      1,
+    );
+  }
+  return row;
+}
+
+export function updateClan(guildId: string, patch: Partial<Omit<ClanConfig, "guild_id">>) {
+  getClan(guildId);
+  const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
+  if (!entries.length) return getClan(guildId);
+  const sql = `UPDATE clan_config SET ${entries.map(([k]) => `${k} = ?`).join(", ")} WHERE guild_id = ?`;
+  db.prepare(sql).run(...entries.map(([, v]) => v), guildId);
+  return getClan(guildId);
+}
+
+export function listClanPrices(guildId: string): ClanPrice[] {
+  return db.prepare("SELECT * FROM clan_prices WHERE guild_id = ? ORDER BY sort_order, id").all(guildId) as ClanPrice[];
+}
+
+export function countAcceptedClanMembers(guildId: string): number {
+  return (
+    db
+      .prepare("SELECT COUNT(DISTINCT user_id) AS c FROM clan_applications WHERE guild_id = ? AND status = 'accepted'")
+      .get(guildId) as { c: number }
+  ).c;
 }

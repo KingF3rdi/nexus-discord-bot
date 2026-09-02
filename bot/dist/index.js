@@ -100,7 +100,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
-console.log("[Nexus] 1.0.2 start · Gateway-Intents: Guilds only");
+console.log("[Nexus] 1.0.3 start · Gateway-Intents: Guilds only");
 client.login(token).catch((err) => {
     if (isDisallowedIntents(err))
         printIntentsHelp();
