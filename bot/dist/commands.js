@@ -154,7 +154,7 @@ export const commands = [
         .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement))),
     new SlashCommandBuilder()
         .setName("vouch-panel")
-        .setDescription("Vouch-Auswertung mit User-Auswahl senden")
+        .setDescription("Ein Vouch-Panel ans Kanalende (altes wird gelöscht)")
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
         .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)),
     new SlashCommandBuilder()
@@ -310,6 +310,6 @@ export function helpText() {
         "",
         "**Giveaways & Vouches**",
         "`/giveaway starten` · `/giveaway beenden` · `/giveaway reroll`",
-        "`/vouch erstellen` · `/vouch-panel`",
+        "`/vouch erstellen` · `/vouch-panel` — nur ein Panel, immer die letzte Nachricht im Kanal",
     ].join("\n");
 }

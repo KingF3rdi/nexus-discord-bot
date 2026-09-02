@@ -26,8 +26,6 @@ import {
   ticketPanelEmbed,
   ticketSelect,
   vouchEmbed,
-  vouchLookupEmbed,
-  vouchUserSelect,
   warningEmbed,
   winnersEmbed,
 } from "./embeds.js";
@@ -72,6 +70,7 @@ import {
   submitClanInfo,
 } from "./clan.js";
 import { handleVouchDmButton, sendVouchDm } from "./vouch-dm.js";
+import { keepVouchPanelAtBottom, placeVouchPanel } from "./vouch-panel.js";
 
 type AnyInteraction =
   | ChatInputCommandInteraction
@@ -679,26 +678,17 @@ async function cmdVouch(interaction: ChatInputCommandInteraction) {
       ),
     ],
   });
+  await keepVouchPanelAtBottom(interaction.client, interaction.guildId!);
   await interaction.reply({ content: `Vouch #${id} in ${channel} gepostet.`, flags: 64 });
 }
 
 async function cmdVouchPanel(interaction: ChatInputCommandInteraction) {
-  const config = getGuild(interaction.guildId);
-  const profiles = db
-    .prepare("SELECT COUNT(DISTINCT buyer_id) + COUNT(DISTINCT seller_id) AS c FROM vouches WHERE guild_id = ?")
-    .get(interaction.guildId) as { c: number };
   const channel = await resolveTextChannel(interaction);
-  const msg = await channel.send({
-    embeds: [vouchLookupEmbed(config, profiles.c || 0)],
-    components: [vouchUserSelect()],
+  await placeVouchPanel(interaction.client, interaction.guildId!, channel);
+  await interaction.reply({
+    content: `Vouch-Panel in ${channel}: altes Panel gelöscht, dieses bleibt immer die letzte Nachricht im Kanal.`,
+    flags: 64,
   });
-  updateGuild(interaction.guildId, { vouch_channel_id: channel.id });
-  db.prepare("INSERT INTO panels (guild_id, type, channel_id, message_id) VALUES (?, 'vouch', ?, ?)").run(
-    interaction.guildId,
-    channel.id,
-    msg.id,
-  );
-  await interaction.reply({ content: `Vouch-Panel in ${channel} gesendet. Kauf-Bewertungen per DM landen hier.`, flags: 64 });
 }
 
 async function cmdPay(interaction: ChatInputCommandInteraction) {

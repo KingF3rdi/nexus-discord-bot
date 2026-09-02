@@ -2,6 +2,7 @@ import { EmbedBuilder, } from "discord.js";
 import { db, getGuild } from "./db.js";
 import { vouchDmEmbed, vouchEmbed, vouchStarButtons } from "./embeds.js";
 import { COLORS } from "./util.js";
+import { keepVouchPanelAtBottom } from "./vouch-panel.js";
 function productLabel(ticket) {
     if (ticket.product_name)
         return ticket.product_name;
@@ -92,17 +93,17 @@ export async function handleVouchDmButton(interaction) {
         rating,
         note: "Bewertung per DM nach dem Kauf",
     }, { categoryCount, total });
-    const channelId = config.vouch_channel_id ||
-        db
-            .prepare("SELECT channel_id FROM panels WHERE guild_id = ? AND type = 'vouch' ORDER BY id DESC LIMIT 1")
-            .get(req.guild_id)?.channel_id ||
-        config.log_channel_id;
+    const panelCh = db
+        .prepare("SELECT channel_id FROM panels WHERE guild_id = ? AND type = 'vouch' ORDER BY id DESC LIMIT 1")
+        .get(req.guild_id)?.channel_id;
+    const channelId = panelCh || config.vouch_channel_id || config.log_channel_id;
     if (channelId) {
         const ch = await interaction.client.channels.fetch(channelId).catch(() => null);
         if (ch && ch.isTextBased() && "send" in ch) {
             await ch.send({ embeds: [payload] }).catch(() => undefined);
         }
     }
+    await keepVouchPanelAtBottom(interaction.client, req.guild_id);
     await interaction.update({
         embeds: [
             new EmbedBuilder()

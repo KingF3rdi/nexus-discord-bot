@@ -359,12 +359,25 @@ function VouchChannel({ selected, onSelect }: { selected: string | null; onSelec
         </Embed>
       </DiscordMessage>
       <DiscordMessage>
-        <Embed color="#fee75c" footer="FriendsWithMoney · 40 verifizierte Profile · Seite 1 von 2">
+        <Embed color="#23a559" author="Verifiziertes Vouch-System · Shop" footer="FriendsWithMoney · Shop-Vouches: 70 · Gesamte Vouches: 2611">
+          <p className="text-[16px] font-semibold text-white">Neue Bewertung · Vouch #2611</p>
+          <p className="mt-1">{stars(5)}</p>
+          <Field name="📦 Produkt" value="Thorfinn von Vinland Saga" />
+          <Field name="⚖️ Menge" value="1" />
+          <Field name="💵 Preis" value="$6.000.000" />
+          <Field name="👤 Käufer" value={<Mention>@Du</Mention>} />
+          <Field name="🛡️ Verkäufer" value={<Mention>@MapSeller</Mention>} />
+          <Field name="🗒️ Notiz" value={<blockquote className="quote">Bewertung per DM nach dem Kauf</blockquote>} />
+        </Embed>
+      </DiscordMessage>
+      <DiscordMessage>
+        <Embed color="#fee75c" footer="FriendsWithMoney · 40 verifizierte Profile · Seite 1 von 1">
           <p className="text-[16px] font-semibold text-white">🔍 Vouch-Auswertung</p>
           <p className="mt-2">
             <strong>Finde schnell die Bewertungen unserer Käufer und Verkäufer.</strong>
           </p>
           <p className="mt-2">Wähle unten eine Person aus, um die vollständige Vouch-Statistik anzusehen.</p>
+          <p className="mt-2 text-[#b5bac1]">Ein Panel — immer die letzte Nachricht in diesem Kanal.</p>
         </Embed>
         <SelectBox
           placeholder="Käufer oder Verkäufer auswählen ..."
@@ -755,7 +768,7 @@ function CommandsChannel({
         <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />
-        <Field name="/vouch erstellen · /vouch-panel" value="Bewertungen und Statistik-Dropdown" />
+        <Field name="/vouch erstellen · /vouch-panel" value="Nur ein Panel — altes wird gelöscht, bleibt am Kanalende" />
         <Field name="/service-panel" value="Services mit Ticket-Limit (z. B. 10/10)" />
       </Embed>
       <div className="rounded-lg bg-[#2b2d31] p-4">

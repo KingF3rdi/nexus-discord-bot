@@ -11,7 +11,7 @@ Die Web-Vorschau zeigt dasselbe Look & Feel wie in Discord (dunkle Embeds, grün
 - **Mehrere Panels** — `/ticket-panel` und `/buy-panel` so oft senden, wie du willst, in beliebige Kanäle.
 - **Texte senden** — `/msg`, `/sagen` und `/embed` öffnen ein **Textfenster**: **fett**, *kursiv*, Zeilenumbrüche mit Enter, optional Embed oder DM.
 - **Giveaways** — Start mit Dauer (`7h`, `30m`, `1d`), Teilnehmen-Button, automatische Auslosung, Reroll.
-- **Vouches** — Bewertung mit Sternen, Produkt, Menge, Preis; Panel zum Nachschlagen von Käufer-/Verkäufer-Statistik.
+- **Vouches** — Bewertung mit Sternen, Produkt, Menge, Preis. `/vouch-panel` hängt **ein** Auswertungs-Panel **ans Ende** des Kanals; ein altes Panel wird gelöscht. Neue Vouches (auch per DM) schieben das Panel wieder nach unten.
 - **Services** — z. B. Bau-Service mit Limit (`10/10 Tickets – Limit erreicht`).
 - **Clan-Bewerbungen** — Panel mit Infos, Preisen und Plätzen (`4/30`). Es zählen nur **angenommene** Mitglieder, und **jede Person nur einmal**. Admins stellen Name, Info, Maximum und Preise per `/clan` ein.
 
@@ -86,7 +86,7 @@ npm run bot
 | `/clan annehmen` / `ablehnen` / `kick` | Platz belegen, ablehnen oder wieder freigeben |
 | `/pay` | Zahlungsanfrage mit Gesamtbetrag posten |
 | `/giveaway starten` | Gewinnspiel mit Button |
-| `/vouch erstellen` / `/vouch-panel` | Bewertung bzw. Statistik-Panel |
+| `/vouch erstellen` / `/vouch-panel` | Bewertung posten; ein Panel, immer am Kanalende |
 | `/service hinzufuegen` / `/service-panel` | Service-Tickets mit Limit |
 | `/help` | Übersicht |
 
