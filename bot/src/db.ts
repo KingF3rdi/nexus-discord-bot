@@ -335,55 +335,156 @@ export function backfillSpawnerEmojis(guildId: string) {
 }
 
 export type ClanConfig = {
+  id: number;
   guild_id: string;
   name: string;
   info: string;
   max_slots: number;
   pay_recipient: string | null;
   role_id: string | null;
+  sort_order: number;
 };
 
 export type ClanPrice = { id: number; guild_id: string; label: string; amount: number; sort_order: number };
 
-export function getClan(guildId: string | null | undefined): ClanConfig {
-  const id = requireGuildId(guildId);
-  let row = db.prepare("SELECT * FROM clan_config WHERE guild_id = ?").get(id) as ClanConfig | undefined;
-  if (!row) {
-    db.prepare("INSERT INTO clan_config (guild_id) VALUES (?)").run(id);
-    row = db.prepare("SELECT * FROM clan_config WHERE guild_id = ?").get(id) as ClanConfig;
+db.exec(`
+CREATE TABLE IF NOT EXISTS clans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  info TEXT NOT NULL DEFAULT 'Wir suchen aktive Spieler für PvP, Farm und Teamplay. Bewirb dich unten — ein Platz zählt nur einmal pro Person.',
+  max_slots INTEGER NOT NULL DEFAULT 30,
+  pay_recipient TEXT,
+  role_id TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(guild_id, name)
+);
+`);
+ensureColumn("clan_applications", "clan_id", "clan_id INTEGER");
+
+function seedClansFromConfig() {
+  const configs = db.prepare("SELECT * FROM clan_config").all() as {
+    guild_id: string;
+    name: string;
+    info: string;
+    max_slots: number;
+    pay_recipient: string | null;
+    role_id: string | null;
+  }[];
+  const insert = db.prepare(
+    "INSERT INTO clans (guild_id, name, info, max_slots, pay_recipient, role_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, 0)",
+  );
+  for (const c of configs) {
+    const n = (db.prepare("SELECT COUNT(*) AS c FROM clans WHERE guild_id = ?").get(c.guild_id) as { c: number }).c;
+    if (n > 0) continue;
+    const result = insert.run(c.guild_id, c.name, c.info, c.max_slots, c.pay_recipient, c.role_id);
+    db.prepare("UPDATE clan_applications SET clan_id = ? WHERE guild_id = ? AND clan_id IS NULL").run(
+      result.lastInsertRowid,
+      c.guild_id,
+    );
   }
-  const priceCount = (db.prepare("SELECT COUNT(*) AS c FROM clan_prices WHERE guild_id = ?").get(id) as { c: number }).c;
+}
+seedClansFromConfig();
+
+function ensureClanPrices(guildId: string) {
+  const priceCount = (db.prepare("SELECT COUNT(*) AS c FROM clan_prices WHERE guild_id = ?").get(guildId) as { c: number }).c;
   if (priceCount === 0) {
     db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, ?)").run(
-      id,
+      guildId,
       "Eintritt",
       5_000_000,
       0,
     );
     db.prepare("INSERT INTO clan_prices (guild_id, label, amount, sort_order) VALUES (?, ?, ?, ?)").run(
-      id,
+      guildId,
       "Wöchentliche Abgabe",
       2_000_000,
       1,
     );
   }
-  return row;
 }
 
-export function updateClan(guildId: string, patch: Partial<Omit<ClanConfig, "guild_id">>) {
-  getClan(guildId);
+export function listClans(guildId: string | null | undefined): ClanConfig[] {
+  const id = requireGuildId(guildId);
+  ensureClanPrices(id);
+  return db.prepare("SELECT * FROM clans WHERE guild_id = ? ORDER BY sort_order, name").all(id) as ClanConfig[];
+}
+
+export function getClanById(guildId: string, clanId: number): ClanConfig | undefined {
+  return db.prepare("SELECT * FROM clans WHERE id = ? AND guild_id = ?").get(clanId, guildId) as ClanConfig | undefined;
+}
+
+export function resolveClan(guildId: string, name?: string | null): ClanConfig {
+  const all = listClans(guildId);
+  if (name?.trim()) {
+    const found = all.find((c) => c.name.toLowerCase() === name.trim().toLowerCase());
+    if (!found) {
+      throw new Error(
+        `Clan **${name}** steht nicht auf dem Panel.` +
+          (all.length ? ` Vorhanden: ${all.map((c) => `**${c.name}**`).join(", ")}.` : " Lege einen mit `/clan hinzufuegen` an."),
+      );
+    }
+    return found;
+  }
+  if (all.length === 1) return all[0]!;
+  if (!all.length) throw new Error("Kein Clan auf dem Panel. `/clan hinzufuegen name:…`");
+  throw new Error(`Mehrere Clans — Option \`clan:\` setzen (${all.map((c) => c.name).join(", ")}).`);
+}
+
+export function insertClan(
+  guildId: string,
+  opts: { name: string; info?: string; max_slots?: number; role_id?: string | null; pay_recipient?: string | null },
+): ClanConfig {
+  const name = opts.name.trim();
+  if (!name) throw new Error("Clan-Name fehlt.");
+  const existing = db
+    .prepare("SELECT id FROM clans WHERE guild_id = ? AND lower(name) = lower(?)")
+    .get(guildId, name) as { id: number } | undefined;
+  if (existing) throw new Error(`**${name}** ist schon auf dem Panel. \`/clan entfernen name:${name}\` zum Löschen.`);
+  const max = opts.max_slots ?? 30;
+  db.prepare(
+    "INSERT INTO clans (guild_id, name, info, max_slots, pay_recipient, role_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, 99)",
+  ).run(
+    guildId,
+    name,
+    opts.info ||
+      "Wir suchen aktive Spieler für PvP, Farm und Teamplay. Bewirb dich unten — ein Platz zählt nur einmal pro Person.",
+    max,
+    opts.pay_recipient ?? null,
+    opts.role_id ?? null,
+  );
+  ensureClanPrices(guildId);
+  return resolveClan(guildId, name);
+}
+
+export function deleteClan(guildId: string, clan: ClanConfig) {
+  db.prepare("DELETE FROM clan_applications WHERE guild_id = ? AND clan_id = ?").run(guildId, clan.id);
+  db.prepare("DELETE FROM clans WHERE id = ? AND guild_id = ?").run(clan.id, guildId);
+}
+
+export function updateClanRow(clanId: number, guildId: string, patch: Partial<Omit<ClanConfig, "id" | "guild_id">>) {
   const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
-  if (!entries.length) return getClan(guildId);
-  const sql = `UPDATE clan_config SET ${entries.map(([k]) => `${k} = ?`).join(", ")} WHERE guild_id = ?`;
-  db.prepare(sql).run(...entries.map(([, v]) => v), guildId);
-  return getClan(guildId);
+  if (!entries.length) return getClanById(guildId, clanId);
+  const sql = `UPDATE clans SET ${entries.map(([k]) => `${k} = ?`).join(", ")} WHERE id = ? AND guild_id = ?`;
+  db.prepare(sql).run(...entries.map(([, v]) => v), clanId, guildId);
+  return getClanById(guildId, clanId);
 }
 
 export function listClanPrices(guildId: string): ClanPrice[] {
+  ensureClanPrices(guildId);
   return db.prepare("SELECT * FROM clan_prices WHERE guild_id = ? ORDER BY sort_order, id").all(guildId) as ClanPrice[];
 }
 
-export function countAcceptedClanMembers(guildId: string): number {
+export function countAcceptedClanMembers(guildId: string, clanId?: number | null): number {
+  if (clanId != null) {
+    return (
+      db
+        .prepare(
+          "SELECT COUNT(DISTINCT user_id) AS c FROM clan_applications WHERE guild_id = ? AND clan_id = ? AND status = 'accepted'",
+        )
+        .get(guildId, clanId) as { c: number }
+    ).c;
+  }
   return (
     db
       .prepare("SELECT COUNT(DISTINCT user_id) AS c FROM clan_applications WHERE guild_id = ? AND status = 'accepted'")

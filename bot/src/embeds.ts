@@ -247,43 +247,120 @@ export function spawnerButtons() {
 
 export function clanPanelEmbed(
   config: { community_name: string; footer: string },
-  clan: { name: string; info: string; max_slots: number; role_id?: string | null },
-  filled: number,
+  clans: { name: string; info: string; max_slots: number; role_id?: string | null; filled: number }[],
   prices: { label: string; amount: number }[],
 ) {
-  const full = filled >= clan.max_slots;
-  const slotLine = full
-    ? `🔴 **${filled}/${clan.max_slots} Plätze – Clan ist voll**`
-    : `🟢 **${filled}/${clan.max_slots} Plätze**`;
   const priceLines =
     prices.map((p) => `• **${p.label}:** \`${formatMillions(p.amount)}\` (${formatMoney(p.amount)})`).join("\n") ||
     "_Keine Preise. `/clan preis-setzen`_";
+  const allFull = clans.length > 0 && clans.every((c) => c.filled >= c.max_slots);
+
+  if (!clans.length) {
+    return new EmbedBuilder()
+      .setColor(COLORS.gray)
+      .setTitle("🤝 Clan-Bewerbung")
+      .setDescription("Aktuell stehen **keine Clans** auf dem Panel.\nTeam: `/clan hinzufuegen name:…`")
+      .setFooter({ text: `${config.community_name} · Clan-System` })
+      .setTimestamp();
+  }
+
+  if (clans.length === 1) {
+    const clan = clans[0]!;
+    const full = clan.filled >= clan.max_slots;
+    const slotLine = full
+      ? `🔴 **${clan.filled}/${clan.max_slots} Plätze – Clan ist voll**`
+      : `🟢 **${clan.filled}/${clan.max_slots} Plätze**`;
+    return new EmbedBuilder()
+      .setColor(full ? COLORS.red : COLORS.green)
+      .setTitle(`🤝 Clan-Bewerbung · ${clan.name}`)
+      .setDescription(
+        [
+          slotLine,
+          "",
+          clan.info || "_Keine Info. `/clan info`_",
+          "",
+          "**Preise**",
+          priceLines,
+          "",
+          "🔒 **Hinweis**",
+          "Jede Person zählt **nur einmal**. Team: `/clan entfernen` nimmt den Clan vom Panel.",
+          clan.role_id ? `Bei Annahme erhältst du die Rolle <@&${clan.role_id}>.` : "",
+          full ? "\nDer Clan nimmt derzeit **keine** neuen Mitglieder auf." : "Klicke auf den Button, um dich zu bewerben.",
+        ].join("\n"),
+      )
+      .setFooter({ text: `${config.community_name} · Clan-System` })
+      .setTimestamp();
+  }
+
+  const list = clans
+    .map((c) => {
+      const full = c.filled >= c.max_slots;
+      const slots = full
+        ? `🔴 **${c.filled}/${c.max_slots}** voll`
+        : `🟢 **${c.filled}/${c.max_slots}**`;
+      const info = c.info?.trim() ? `\n${c.info.split("\n")[0]}` : "";
+      return `${slots}  **${c.name}**${info}`;
+    })
+    .join("\n\n");
+
   return new EmbedBuilder()
-    .setColor(full ? COLORS.red : COLORS.green)
-    .setTitle(`🤝 Clan-Bewerbung · ${clan.name}`)
+    .setColor(allFull ? COLORS.red : COLORS.green)
+    .setTitle("🤝 Clan-Bewerbung")
     .setDescription(
       [
-        slotLine,
+        "Wähle unten den Clan, in den du willst. Team entfernt Clans mit `/clan entfernen`.",
         "",
-        clan.info,
+        list,
         "",
         "**Preise**",
         priceLines,
         "",
         "🔒 **Hinweis**",
-        "Jede Person zählt **nur einmal**. Doppelte oder erneute Bewerbungen erhöhen die Platzzahl nicht.",
-        clan.role_id ? `Bei Annahme erhältst du die Rolle <@&${clan.role_id}>.` : "",
-        full ? "\nDer Clan nimmt derzeit **keine** neuen Mitglieder auf." : "Klicke auf den Button, um dich zu bewerben.",
+        "Jede Person zählt **nur einmal** (ein Clan).",
       ].join("\n"),
     )
     .setFooter({ text: `${config.community_name} · Clan-System` })
     .setTimestamp();
 }
 
-export function clanApplyButton(disabled: boolean) {
+export function clanPanelComponents(
+  clans: { id: number; name: string; max_slots: number; filled: number }[],
+) {
+  if (!clans.length) {
+    return [
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId("clan:apply")
+          .setStyle(ButtonStyle.Secondary)
+          .setLabel("Keine Clans")
+          .setDisabled(true),
+      ),
+    ];
+  }
+  if (clans.length === 1) {
+    const c = clans[0]!;
+    return [clanApplyButton(c.filled >= c.max_slots, c.id)];
+  }
+  return [
+    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("clan:pick")
+        .setPlaceholder("Clan auswählen …")
+        .addOptions(
+          clans.slice(0, 25).map((c) => ({
+            label: c.name.slice(0, 100),
+            value: String(c.id),
+            description: `${c.filled}/${c.max_slots} Plätze${c.filled >= c.max_slots ? " · voll" : ""}`.slice(0, 100),
+          })),
+        ),
+    ),
+  ];
+}
+
+export function clanApplyButton(disabled: boolean, clanId?: number) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId("clan:apply")
+      .setCustomId(clanId != null ? `clan:apply:${clanId}` : "clan:apply")
       .setStyle(ButtonStyle.Success)
       .setEmoji("📝")
       .setLabel(disabled ? "Clan ist voll" : "Jetzt bewerben")

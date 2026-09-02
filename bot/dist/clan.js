@@ -1,23 +1,24 @@
 import { ActionRowBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, } from "discord.js";
-import { countAcceptedClanMembers, db, getClan, getGuild, listClanPrices, requireGuildId, updateClan, } from "./db.js";
-import { clanApplyButton, clanPanelEmbed, clanTicketControls, paymentEmbed, ticketControls } from "./embeds.js";
+import { countAcceptedClanMembers, db, deleteClan, getClanById, getGuild, insertClan, listClanPrices, listClans, requireGuildId, resolveClan, updateClanRow, } from "./db.js";
+import { clanPanelComponents, clanPanelEmbed, clanTicketControls, paymentEmbed, ticketControls } from "./embeds.js";
 import { COLORS, formatMillions, formatUserText, parsePrice, shopPayRecipient } from "./util.js";
 import { createTicketChannel, insertTicket, isStaff, resolveTextChannel } from "./tickets.js";
+function panelClans(guildId) {
+    return listClans(guildId).map((c) => ({ ...c, filled: countAcceptedClanMembers(guildId, c.id) }));
+}
 function panelPayload(guildId) {
     const config = getGuild(guildId);
-    const clan = getClan(guildId);
-    const filled = countAcceptedClanMembers(guildId);
+    const clans = panelClans(guildId);
     const prices = listClanPrices(guildId);
     return {
-        embeds: [clanPanelEmbed(config, clan, filled, prices)],
-        components: [clanApplyButton(filled >= clan.max_slots)],
+        embeds: [clanPanelEmbed(config, clans, prices)],
+        components: clanPanelComponents(clans),
     };
 }
-async function syncClanRole(guild, userId, add) {
+async function syncClanRole(guild, userId, add, roleId) {
     if (!guild)
         return "";
-    const clan = getClan(guild.id);
-    if (!clan.role_id) {
+    if (!roleId) {
         return add ? " Keine Clan-Rolle gesetzt — `/clan rolle`." : "";
     }
     const member = await guild.members.fetch(userId).catch(() => null);
@@ -25,15 +26,15 @@ async function syncClanRole(guild, userId, add) {
         return ` Mitglied <@${userId}> nicht auf dem Server, Rolle nicht ${add ? "vergeben" : "entfernt"}.`;
     try {
         if (add) {
-            if (!member.roles.cache.has(clan.role_id)) {
-                await member.roles.add(clan.role_id, "Clan-Bewerbung angenommen");
+            if (!member.roles.cache.has(roleId)) {
+                await member.roles.add(roleId, "Clan-Bewerbung angenommen");
             }
-            return ` Rolle <@&${clan.role_id}> vergeben.`;
+            return ` Rolle <@&${roleId}> vergeben.`;
         }
-        if (member.roles.cache.has(clan.role_id)) {
-            await member.roles.remove(clan.role_id, "Clan-Platz entfernt");
+        if (member.roles.cache.has(roleId)) {
+            await member.roles.remove(roleId, "Clan-Platz entfernt");
         }
-        return ` Rolle <@&${clan.role_id}> entfernt.`;
+        return ` Rolle <@&${roleId}> entfernt.`;
     }
     catch {
         return " Rolle konnte nicht geändert werden — Bot braucht **Rollen verwalten** und muss **über** der Clan-Rolle stehen.";
@@ -52,39 +53,73 @@ export async function refreshClanPanels(client, guildId) {
         await msg?.edit(payload).catch(() => undefined);
     }
 }
+export async function refreshAllClanPanels(client) {
+    const rows = db.prepare("SELECT DISTINCT guild_id FROM panels WHERE type = 'clan'").all();
+    for (const row of rows) {
+        await refreshClanPanels(client, row.guild_id);
+    }
+}
 export async function cmdClan(interaction) {
     const guildId = requireGuildId(interaction.guildId);
-    const clan = getClan(guildId);
     const sub = interaction.options.getSubcommand();
+    const which = interaction.options.getString("clan");
     if (sub === "panel") {
         await cmdClanPanel(interaction);
         return;
     }
+    if (sub === "hinzufuegen") {
+        const name = interaction.options.getString("name", true);
+        const max = interaction.options.getInteger("plaetze") ?? 30;
+        const role = interaction.options.getRole("rolle");
+        const clan = insertClan(guildId, { name, max_slots: max, role_id: role?.id ?? null });
+        await refreshClanPanels(interaction.client, guildId);
+        await interaction.reply({
+            content: `**${clan.name}** steht jetzt auf dem Panel (${max} Plätze). Entfernen: \`/clan entfernen name:${clan.name}\`.`,
+            flags: 64,
+        });
+        return;
+    }
+    if (sub === "entfernen") {
+        const clan = resolveClan(guildId, interaction.options.getString("name", true));
+        deleteClan(guildId, clan);
+        await refreshClanPanels(interaction.client, guildId);
+        await interaction.reply({
+            content: `**${clan.name}** ist vom Panel runter. Offene Bewerbungen für diesen Clan wurden gelöscht.`,
+            flags: 64,
+        });
+        return;
+    }
     if (sub === "anzeigen") {
-        const filled = countAcceptedClanMembers(guildId);
+        const clans = panelClans(guildId);
         const prices = listClanPrices(guildId)
             .map((p) => `• **${p.label}:** ${formatMillions(p.amount)}`)
             .join("\n") || "_keine_";
+        const body = clans
+            .map((c) => `• **${c.name}** · ${c.filled}/${c.max_slots}` +
+            (c.role_id ? ` · <@&${c.role_id}>` : " · _keine Rolle_"))
+            .join("\n") || "_Keine Clans. `/clan hinzufuegen`_";
         await interaction.reply({
             embeds: [
                 new EmbedBuilder()
                     .setColor(COLORS.green)
-                    .setTitle(`Clan · ${clan.name}`)
-                    .setDescription(`${clan.info}\n\n**Plätze:** ${filled}/${clan.max_slots}\n**Rolle:** ${clan.role_id ? `<@&${clan.role_id}>` : "_nicht gesetzt — `/clan rolle`_"}\n\n**Preise**\n${prices}`),
+                    .setTitle("Clans auf dem Panel")
+                    .setDescription(`${body}\n\n**Preise**\n${prices}`),
             ],
             flags: 64,
         });
         return;
     }
     if (sub === "name") {
+        const clan = resolveClan(guildId, which);
         const name = interaction.options.getString("text", true);
-        updateClan(guildId, { name });
+        updateClanRow(clan.id, guildId, { name });
         await refreshClanPanels(interaction.client, guildId);
         await interaction.reply({ content: `Clan-Name ist jetzt **${name}**.`, flags: 64 });
         return;
     }
     if (sub === "info") {
-        const modal = new ModalBuilder().setCustomId("clan:info").setTitle("Clan-Info formatieren");
+        const clan = resolveClan(guildId, which);
+        const modal = new ModalBuilder().setCustomId(`clan:info:${clan.id}`).setTitle(`Info · ${clan.name}`.slice(0, 45));
         const input = new TextInputBuilder()
             .setCustomId("text")
             .setLabel("Text  ·  **fett**  *kursiv*  __unter__")
@@ -100,27 +135,31 @@ export async function cmdClan(interaction) {
         return;
     }
     if (sub === "plaetze") {
+        const clan = resolveClan(guildId, which);
         const max = interaction.options.getInteger("anzahl", true);
-        updateClan(guildId, { max_slots: max });
+        updateClanRow(clan.id, guildId, { max_slots: max });
         await refreshClanPanels(interaction.client, guildId);
-        const filled = countAcceptedClanMembers(guildId);
-        await interaction.reply({ content: `Maximale Plätze: **${filled}/${max}**.`, flags: 64 });
+        const filled = countAcceptedClanMembers(guildId, clan.id);
+        await interaction.reply({ content: `**${clan.name}:** **${filled}/${max}**.`, flags: 64 });
         return;
     }
     if (sub === "empfaenger") {
+        const clan = resolveClan(guildId, which);
         const name = interaction.options.getString("name", true);
-        updateClan(guildId, { pay_recipient: name });
+        updateClanRow(clan.id, guildId, { pay_recipient: name });
         await interaction.reply({
-            content: `Clan-Pay-Empfänger ist jetzt \`${name}\` (erscheint als /pay im Bewerbungs-Ticket).`,
+            content: `Pay-Empfänger für **${clan.name}** ist \`${name}\`.`,
             flags: 64,
         });
         return;
     }
     if (sub === "rolle") {
+        const clan = resolveClan(guildId, which);
         const role = interaction.options.getRole("rolle", true);
-        updateClan(guildId, { role_id: role.id });
+        updateClanRow(clan.id, guildId, { role_id: role.id });
+        await refreshClanPanels(interaction.client, guildId);
         await interaction.reply({
-            content: `Clan-Rolle ist jetzt ${role}. Wird bei **Annahme** vergeben und bei Kick wieder entfernt.`,
+            content: `Rolle für **${clan.name}** ist ${role}. Wird bei Annahme vergeben.`,
             flags: 64,
         });
         return;
@@ -163,18 +202,21 @@ export async function cmdClan(interaction) {
     }
     if (sub === "liste") {
         const rows = db
-            .prepare("SELECT user_id, ign, status FROM clan_applications WHERE guild_id = ? ORDER BY status, id")
+            .prepare(`SELECT a.user_id, a.ign, a.status, c.name AS clan_name
+         FROM clan_applications a
+         LEFT JOIN clans c ON c.id = a.clan_id
+         WHERE a.guild_id = ?
+         ORDER BY a.status, a.id`)
             .all(guildId);
         const line = (s) => rows
             .filter((r) => r.status === s)
-            .map((r) => `• <@${r.user_id}>${r.ign ? ` (\`${r.ign}\`)` : ""}`)
+            .map((r) => `• <@${r.user_id}>${r.ign ? ` (\`${r.ign}\`)` : ""}${r.clan_name ? ` · ${r.clan_name}` : ""}`)
             .join("\n") || "_—_";
-        const filled = countAcceptedClanMembers(guildId);
         await interaction.reply({
             embeds: [
                 new EmbedBuilder()
                     .setColor(COLORS.green)
-                    .setTitle(`Bewerbungen · ${filled}/${clan.max_slots}`)
+                    .setTitle("Bewerbungen")
                     .addFields({ name: "✅ Angenommen (zählen)", value: line("accepted").slice(0, 1024) }, { name: "⏳ Offen", value: line("pending").slice(0, 1024) }, { name: "❌ Abgelehnt", value: line("rejected").slice(0, 1024) }),
             ],
             flags: 64,
@@ -198,37 +240,43 @@ async function setApplicationStatus(interaction, guildId, userId, status) {
     if (!member || typeof member === "string" || !isStaff(member, config)) {
         throw new Error("Nur das Team kann Bewerbungen entscheiden.");
     }
-    const clan = getClan(guildId);
     const existing = db
-        .prepare("SELECT status FROM clan_applications WHERE guild_id = ? AND user_id = ?")
+        .prepare("SELECT status, clan_id FROM clan_applications WHERE guild_id = ? AND user_id = ?")
         .get(guildId, userId);
+    const clan = existing?.clan_id ? getClanById(guildId, existing.clan_id) : listClans(guildId)[0];
+    const clanId = clan?.id ?? existing?.clan_id ?? null;
+    const filledOf = (id) => countAcceptedClanMembers(guildId, id ?? undefined);
     if (status === "removed") {
         const wasAccepted = existing?.status === "accepted";
         db.prepare("DELETE FROM clan_applications WHERE guild_id = ? AND user_id = ?").run(guildId, userId);
         await refreshClanPanels(interaction.client, guildId);
-        const filled = countAcceptedClanMembers(guildId);
-        const roleNote = wasAccepted ? await syncClanRole(interaction.guild, userId, false) : "";
+        const filled = filledOf(clanId);
+        const roleNote = wasAccepted ? await syncClanRole(interaction.guild, userId, false, clan?.role_id) : "";
         await interaction.reply({
-            content: `<@${userId}> ist raus. Plätze jetzt **${filled}/${clan.max_slots}**.${roleNote}`,
+            content: `<@${userId}> ist raus${clan ? ` aus **${clan.name}**` : ""}. Plätze **${filled}${clan ? `/${clan.max_slots}` : ""}**.${roleNote}`,
         });
         return;
     }
     if (status === "accepted") {
-        const filled = countAcceptedClanMembers(guildId);
+        if (!clan)
+            throw new Error("Kein Clan für diese Bewerbung. `/clan hinzufuegen`.");
+        const filled = countAcceptedClanMembers(guildId, clan.id);
         const already = existing?.status === "accepted";
         if (!already && filled >= clan.max_slots)
-            throw new Error(`Clan ist voll (${filled}/${clan.max_slots}).`);
+            throw new Error(`**${clan.name}** ist voll (${filled}/${clan.max_slots}).`);
         if (!existing) {
-            db.prepare("INSERT INTO clan_applications (guild_id, user_id, status, decided_by, created_at, decided_at) VALUES (?, ?, 'accepted', ?, ?, ?)").run(guildId, userId, interaction.user.id, Date.now(), Date.now());
+            db.prepare("INSERT INTO clan_applications (guild_id, user_id, clan_id, status, decided_by, created_at, decided_at) VALUES (?, ?, ?, 'accepted', ?, ?, ?)").run(guildId, userId, clan.id, interaction.user.id, Date.now(), Date.now());
         }
         else if (existing.status !== "accepted") {
-            db.prepare("UPDATE clan_applications SET status = 'accepted', decided_by = ?, decided_at = ? WHERE guild_id = ? AND user_id = ?").run(interaction.user.id, Date.now(), guildId, userId);
+            db.prepare("UPDATE clan_applications SET status = 'accepted', clan_id = ?, decided_by = ?, decided_at = ? WHERE guild_id = ? AND user_id = ?").run(clan.id, interaction.user.id, Date.now(), guildId, userId);
         }
         await refreshClanPanels(interaction.client, guildId);
-        const now = countAcceptedClanMembers(guildId);
+        const now = countAcceptedClanMembers(guildId, clan.id);
         const extra = already ? " War bereits angenommen — Platz wurde **nicht** doppelt gezählt." : "";
-        const roleNote = await syncClanRole(interaction.guild, userId, true);
-        await interaction.reply({ content: `<@${userId}> angenommen. Plätze **${now}/${clan.max_slots}**.${extra}${roleNote}` });
+        const roleNote = await syncClanRole(interaction.guild, userId, true, clan.role_id);
+        await interaction.reply({
+            content: `<@${userId}> angenommen in **${clan.name}**. Plätze **${now}/${clan.max_slots}**.${extra}${roleNote}`,
+        });
         return;
     }
     if (!existing)
@@ -236,39 +284,49 @@ async function setApplicationStatus(interaction, guildId, userId, status) {
     const wasAccepted = existing.status === "accepted";
     db.prepare("UPDATE clan_applications SET status = 'rejected', decided_by = ?, decided_at = ? WHERE guild_id = ? AND user_id = ?").run(interaction.user.id, Date.now(), guildId, userId);
     await refreshClanPanels(interaction.client, guildId);
-    const filled = countAcceptedClanMembers(guildId);
-    const roleNote = wasAccepted ? await syncClanRole(interaction.guild, userId, false) : "";
-    await interaction.reply({ content: `<@${userId}> abgelehnt. Plätze **${filled}/${clan.max_slots}**.${roleNote}` });
+    const filled = filledOf(clanId);
+    const roleNote = wasAccepted ? await syncClanRole(interaction.guild, userId, false, clan?.role_id) : "";
+    await interaction.reply({
+        content: `<@${userId}> abgelehnt${clan ? ` · **${clan.name}**` : ""}. Plätze **${filled}${clan ? `/${clan.max_slots}` : ""}**.${roleNote}`,
+    });
 }
 export async function cmdClanPanel(interaction) {
     const guildId = requireGuildId(interaction.guildId);
-    getClan(guildId);
     const channel = await resolveTextChannel(interaction);
     const payload = panelPayload(guildId);
     const msg = await channel.send(payload);
     db.prepare("INSERT INTO panels (guild_id, type, channel_id, message_id) VALUES (?, 'clan', ?, ?)").run(guildId, channel.id, msg.id);
-    const filled = countAcceptedClanMembers(guildId);
-    const clan = getClan(guildId);
-    await interaction.reply({ content: `Clan-Panel in ${channel} · **${filled}/${clan.max_slots}**.`, flags: 64 });
+    const clans = panelClans(guildId);
+    const summary = clans.map((c) => `${c.name} ${c.filled}/${c.max_slots}`).join(" · ") || "keine Clans";
+    await interaction.reply({
+        content: `Clan-Panel in ${channel} · ${summary}\nClans runternehmen: \`/clan entfernen name:…\``,
+        flags: 64,
+    });
 }
-export async function openClanApplyModal(interaction) {
+export async function openClanApplyModal(interaction, clanId) {
     const guildId = requireGuildId(interaction.guildId);
-    const clan = getClan(guildId);
-    const filled = countAcceptedClanMembers(guildId);
+    const clan = clanId != null
+        ? getClanById(guildId, clanId)
+        : interaction.isStringSelectMenu()
+            ? getClanById(guildId, Number(interaction.values[0]))
+            : listClans(guildId)[0];
+    if (!clan)
+        throw new Error("Dieser Clan ist nicht mehr auf dem Panel.");
+    const filled = countAcceptedClanMembers(guildId, clan.id);
     if (filled >= clan.max_slots)
-        throw new Error(`Clan ist voll (${filled}/${clan.max_slots}).`);
+        throw new Error(`**${clan.name}** ist voll (${filled}/${clan.max_slots}).`);
     const existing = db
         .prepare("SELECT status, ticket_channel_id FROM clan_applications WHERE guild_id = ? AND user_id = ?")
         .get(guildId, interaction.user.id);
     if (existing?.status === "accepted") {
-        throw new Error("Du bist bereits im Clan. Dein Platz ist gezählt — eine zweite Bewerbung ändert die Zahl nicht.");
+        throw new Error("Du bist bereits in einem Clan. Dein Platz ist gezählt — eine zweite Bewerbung ändert die Zahl nicht.");
     }
     if (existing?.status === "pending") {
         throw new Error(existing.ticket_channel_id
             ? `Du hast schon eine offene Bewerbung: <#${existing.ticket_channel_id}>`
             : "Du hast schon eine offene Bewerbung.");
     }
-    const modal = new ModalBuilder().setCustomId("clan:apply").setTitle(`Bewerbung · ${clan.name}`.slice(0, 45));
+    const modal = new ModalBuilder().setCustomId(`clan:apply:${clan.id}`).setTitle(`Bewerbung · ${clan.name}`.slice(0, 45));
     modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder()
         .setCustomId("ign")
         .setLabel("Minecraft-Name")
@@ -284,23 +342,30 @@ export async function openClanApplyModal(interaction) {
 }
 export async function submitClanInfo(interaction) {
     const guildId = requireGuildId(interaction.guildId);
+    const clanId = Number(interaction.customId.split(":")[2]);
+    const clan = Number.isInteger(clanId) ? getClanById(guildId, clanId) : listClans(guildId)[0];
+    if (!clan)
+        throw new Error("Clan nicht gefunden.");
     const info = formatUserText(interaction.fields.getTextInputValue("text"));
     if (!info.trim())
         throw new Error("Clan-Info ist leer.");
-    updateClan(guildId, { info });
+    updateClanRow(clan.id, guildId, { info });
     await refreshClanPanels(interaction.client, guildId);
     await interaction.reply({
-        content: "Clan-Info gespeichert und Panels aktualisiert.\nFormat: `**fett**` `*kursiv*` `__unter__` — Enter für neue Zeile.",
+        content: `Info für **${clan.name}** gespeichert. Panel aktualisiert.`,
         flags: 64,
     });
 }
 export async function submitClanApplication(interaction) {
     const guildId = requireGuildId(interaction.guildId);
-    const clan = getClan(guildId);
+    const fromId = Number(interaction.customId.split(":")[2]);
+    const clan = Number.isInteger(fromId) && fromId > 0 ? getClanById(guildId, fromId) : listClans(guildId)[0];
+    if (!clan)
+        throw new Error("Dieser Clan ist nicht mehr auf dem Panel.");
     const config = getGuild(guildId);
-    const filled = countAcceptedClanMembers(guildId);
+    const filled = countAcceptedClanMembers(guildId, clan.id);
     if (filled >= clan.max_slots)
-        throw new Error(`Clan ist voll (${filled}/${clan.max_slots}).`);
+        throw new Error(`**${clan.name}** ist voll (${filled}/${clan.max_slots}).`);
     const ign = interaction.fields.getTextInputValue("ign").trim();
     const note = interaction.fields.getTextInputValue("note").trim() || "—";
     const existing = db
@@ -334,12 +399,12 @@ export async function submitClanApplication(interaction) {
     });
     const now = Date.now();
     if (existing) {
-        db.prepare(`UPDATE clan_applications SET ign = ?, note = ?, status = 'pending', ticket_channel_id = ?, ticket_id = ?,
-       decided_by = NULL, decided_at = NULL, created_at = ? WHERE guild_id = ? AND user_id = ?`).run(ign, note, channel.id, ticketId, now, guildId, interaction.user.id);
+        db.prepare(`UPDATE clan_applications SET ign = ?, note = ?, status = 'pending', clan_id = ?, ticket_channel_id = ?, ticket_id = ?,
+       decided_by = NULL, decided_at = NULL, created_at = ? WHERE guild_id = ? AND user_id = ?`).run(ign, note, clan.id, channel.id, ticketId, now, guildId, interaction.user.id);
     }
     else {
-        db.prepare(`INSERT INTO clan_applications (guild_id, user_id, ign, note, status, ticket_channel_id, ticket_id, created_at)
-       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`).run(guildId, interaction.user.id, ign, note, channel.id, ticketId, now);
+        db.prepare(`INSERT INTO clan_applications (guild_id, user_id, clan_id, ign, note, status, ticket_channel_id, ticket_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`).run(guildId, interaction.user.id, clan.id, ign, note, channel.id, ticketId, now);
     }
     const embeds = [
         new EmbedBuilder()

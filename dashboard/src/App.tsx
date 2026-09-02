@@ -580,16 +580,24 @@ function SpawnerChannel() {
 }
 
 function ClanChannel() {
-  const max = 30;
-  const [filled, setFilled] = useState(4);
+  const [clans, setClans] = useState([
+    { name: "FriendsWithMoney", filled: 4, max: 30 },
+    { name: "FWM2", filled: 12, max: 30 },
+  ]);
   const [phase, setPhase] = useState<"idle" | "pending" | "accepted">("idle");
   const [hint, setHint] = useState<string | null>(null);
-  const full = filled >= max;
-  const slotLine = full
-    ? `🔴 **${filled}/${max} Plätze – Clan ist voll**`
-    : `🟢 **${filled}/${max} Plätze**`;
+  const allFull = clans.length > 0 && clans.every((c) => c.filled >= c.max);
+
+  function removeClan(name: string) {
+    setClans((list) => list.filter((c) => c.name !== name));
+    setHint(`**${name}** vom Panel genommen. \`/clan entfernen name:${name}\``);
+  }
 
   function apply() {
+    if (!clans.length) {
+      setHint("Keine Clans auf dem Panel.");
+      return;
+    }
     if (phase === "accepted") {
       setHint("Du bist bereits im Clan. Dein Platz ist gezählt — eine zweite Bewerbung ändert die Zahl nicht.");
       return;
@@ -598,52 +606,70 @@ function ClanChannel() {
       setHint("Du hast schon eine offene Bewerbung. Plätze bleiben unverändert, bis das Team annimmt.");
       return;
     }
-    if (full) {
-      setHint(`Clan ist voll (${filled}/${max}).`);
+    if (allFull) {
+      setHint("Alle Clans auf dem Panel sind voll.");
       return;
     }
     setPhase("pending");
-    setHint(`Bewerbung offen. Plätze unverändert ${filled}/${max} bis zur Annahme.`);
+    setHint(`Bewerbung offen bei ${clans[0]?.name}. Plätze unverändert bis zur Annahme.`);
   }
 
   function accept() {
     if (phase === "accepted") {
-      setHint(`War bereits angenommen — Platz wurde nicht doppelt gezählt. Weiter ${filled}/${max}.`);
+      setHint("War bereits angenommen — Platz wurde nicht doppelt gezählt.");
       return;
     }
-    const next = filled + 1;
-    setFilled(next);
+    setClans((list) => list.map((c, i) => (i === 0 ? { ...c, filled: c.filled + 1 } : c)));
     setPhase("accepted");
-    setHint(`Angenommen. Plätze jetzt ${next}/${max}. Clan-Rolle vergeben.`);
+    setHint(`Angenommen in ${clans[0]?.name}. Clan-Rolle vergeben.`);
   }
 
   function reject() {
     setPhase("idle");
-    setHint(`Abgelehnt. Plätze unverändert ${filled}/${max}.`);
+    setHint("Abgelehnt. Plätze unverändert.");
   }
 
   function kick() {
     if (phase === "accepted") {
-      const next = Math.max(0, filled - 1);
-      setFilled(next);
+      setClans((list) => list.map((c, i) => (i === 0 ? { ...c, filled: Math.max(0, c.filled - 1) } : c)));
       setPhase("idle");
-      setHint(`Platz entfernt. Plätze jetzt ${next}/${max}.`);
+      setHint("Platz entfernt.");
       return;
     }
     setPhase("idle");
-    setHint(`Kein Platz belegt. Weiter ${filled}/${max}.`);
+    setHint("Kein Platz belegt.");
   }
 
   return (
     <>
       <DiscordMessage>
-        <Embed color={full ? "#ed4245" : "#23a559"} footer="FriendsWithMoney · Clan-System">
-          <p className="text-[16px] font-semibold text-white">🤝 Clan-Bewerbung · FriendsWithMoney</p>
-          <p className="mt-2">{slotLine}</p>
-          <p className="mt-3">
-            Wir suchen aktive Spieler für PvP, Farm und Teamplay. Bewirb dich unten — ein Platz zählt nur einmal pro
-            Person.
-          </p>
+        <Embed color={allFull ? "#ed4245" : "#23a559"} footer="FriendsWithMoney · Clan-System">
+          <p className="text-[16px] font-semibold text-white">🤝 Clan-Bewerbung</p>
+          <p className="mt-2 text-[#b5bac1]">Wähle den Clan. Team nimmt Clans mit /clan entfernen vom Panel.</p>
+          {clans.length ? (
+            <div className="mt-3 space-y-2">
+              {clans.map((c) => {
+                const full = c.filled >= c.max;
+                return (
+                  <div key={c.name} className="flex items-start justify-between gap-2 rounded bg-[#1e1f22] px-2.5 py-2">
+                    <div>
+                      <p className="font-semibold text-[#f2f3f5]">{c.name}</p>
+                      <p className="text-[13px]">{full ? `🔴 ${c.filled}/${c.max} voll` : `🟢 ${c.filled}/${c.max}`}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded bg-[#da373c] px-2 py-1 text-[12px] text-white"
+                      onClick={() => removeClan(c.name)}
+                    >
+                      Vom Panel
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-3 text-[#b5bac1]">Keine Clans. /clan hinzufuegen</p>
+          )}
           <p className="mt-3 font-semibold text-white">Preise</p>
           <p className="mt-1">
             • <strong>Eintritt:</strong> <Code>5,0M</Code> ($5.000.000)
@@ -651,23 +677,20 @@ function ClanChannel() {
           <p>
             • <strong>Wöchentliche Abgabe:</strong> <Code>2,0M</Code> ($2.000.000)
           </p>
-          <p className="mt-3 text-[#b5bac1]">
-            🔒 Jede Person zählt nur einmal. Bei Annahme erhältst du die Clan-Rolle.
-          </p>
         </Embed>
-        <DiscordButton onClick={apply} disabled={full && phase !== "accepted"}>
-          {full ? "Clan ist voll" : "Jetzt bewerben"}
+        <DiscordButton onClick={apply} disabled={!clans.length || (allFull && phase !== "accepted")}>
+          {!clans.length ? "Keine Clans" : allFull ? "Clan ist voll" : "Jetzt bewerben"}
         </DiscordButton>
       </DiscordMessage>
-      {phase !== "idle" && (
+      {phase !== "idle" && clans[0] && (
         <DiscordMessage>
           <Embed color="#23a559" footer="FriendsWithMoney · Clan-Bewerbung">
-            <p className="text-[16px] font-semibold text-white">🤝 Bewerbung · FriendsWithMoney</p>
+            <p className="text-[16px] font-semibold text-white">🤝 Bewerbung · {clans[0].name}</p>
             <p className="mt-2">
               Hallo <Mention>@Du</Mention>
             </p>
             <p className="mt-2">
-              <strong>Plätze aktuell:</strong> {filled}/{max} — nach Annahme zählt diese Person einmal.
+              <strong>Plätze aktuell:</strong> {clans[0].filled}/{clans[0].max} — nach Annahme zählt diese Person einmal.
             </p>
             <Field name="Minecraft" value={<Code>DeinName</Code>} />
             <Field name="Über dich" value="PvP + Farm, täglich online." />
@@ -776,7 +799,7 @@ function CommandsChannel({
         <Field name="/produkt erstellen + /buy-panel" value="Shop-Listing mit Kauf-Button, Preis und Verkäufer" />
         <Field name="/spawner hinzufuegen · setzen · emoji · entfernen" value="Preise, Emojis, Spawner anlegen/löschen — Panel aktualisiert sich" />
         <Field name="/spawner rolle + /spawner-panel" value="Preiskacheln, STOP, eigene Support-Rolle für Spawner-Tickets" />
-        <Field name="/clan panel · /clan-panel" value="Bewerbungspanel posten — Plätze, Preise, Button" />
+        <Field name="/clan hinzufuegen · entfernen" value="Clans aufs Panel setzen oder wieder runternehmen" />
         <Field name="/ticket preis" value="Im Ticket ohne Preis den Betrag setzen → /pay y3zz" />
         <Field name="/pay" value="Zahlungsanfrage mit Gesamtbetrag und kopierbarem /pay y3zz Betrag" />
         <Field name="/giveaway starten" value="Teilnehmen-Button, automatische Auslosung, Reroll" />

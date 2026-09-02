@@ -79,6 +79,7 @@ npm run bot
 | `/spawner emoji` / `entfernen` | Emoji setzen oder Spawner löschen |
 | `/spawner rolle` | Eigene Support-Rolle nur für Spawner-Tickets |
 | `/spawner-panel` | Spawner-Shop: Preiskacheln, Ankauf/Verkauf, STOP |
+| `/clan hinzufuegen` / `/clan entfernen` | Clan aufs Panel / vom Panel nehmen |
 | `/clan panel` / `/clan-panel` | Bewerbungspanel: Info, Preise, Plätze (`angenommen/max`) |
 | `/clan plaetze` | Maximum setzen (z. B. 30) |
 | `/clan info` / `/clan name` / `/clan preis-setzen` | Texte (Info mit Markdown) und Preise im Panel |

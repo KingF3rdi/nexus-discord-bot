@@ -577,7 +577,7 @@ export async function handleButton(interaction) {
             return;
         }
         if (kind === "clan" && action === "apply") {
-            await openClanApplyModal(interaction);
+            await openClanApplyModal(interaction, rawId ? Number(rawId) : undefined);
             return;
         }
         if (kind === "clan" && (action === "accept" || action === "reject" || action === "kick") && rawId) {
@@ -600,6 +600,10 @@ export async function handleSelect(interaction) {
         }
         if (interaction.customId.startsWith("spawner:pick:")) {
             await openSpawnerQtyModal(interaction);
+            return;
+        }
+        if (interaction.customId === "clan:pick") {
+            await openClanApplyModal(interaction, Number(interaction.values[0]));
             return;
         }
         if (interaction.customId === "service:select") {
@@ -668,11 +672,11 @@ export async function handleModal(interaction) {
             await submitMsgCompose(interaction);
             return;
         }
-        if (interaction.customId === "clan:apply") {
+        if (interaction.customId.startsWith("clan:apply")) {
             await submitClanApplication(interaction);
             return;
         }
-        if (interaction.customId === "clan:info") {
+        if (interaction.customId.startsWith("clan:info")) {
             await submitClanInfo(interaction);
             return;
         }

@@ -229,20 +229,34 @@ export const commands = [
         .setDescription("Bewerbungspanel posten (Plätze, Preise, Button)")
         .addChannelOption((o) => o.setName("kanal").setDescription("Zielkanal").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)))
         .addSubcommand((s) => s
+        .setName("hinzufuegen")
+        .setDescription("Clan aufs Bewerbungspanel setzen")
+        .addStringOption((o) => o.setName("name").setDescription("z. B. FriendsWithMoney").setRequired(true).setMaxLength(80))
+        .addIntegerOption((o) => o.setName("plaetze").setDescription("Maximum, z. B. 30").setMinValue(1).setMaxValue(500))
+        .addRoleOption((o) => o.setName("rolle").setDescription("Rolle bei Annahme")))
+        .addSubcommand((s) => s
+        .setName("entfernen")
+        .setDescription("Clan vom Panel nehmen")
+        .addStringOption((o) => o.setName("name").setDescription("Name auf dem Panel").setRequired(true).setMaxLength(80)))
+        .addSubcommand((s) => s
         .setName("name")
-        .setDescription("Clan-Namen setzen")
-        .addStringOption((o) => o.setName("text").setDescription("z. B. FriendsWithMoney").setRequired(true).setMaxLength(80)))
+        .setDescription("Clan umbenennen")
+        .addStringOption((o) => o.setName("text").setDescription("Neuer Name").setRequired(true).setMaxLength(80))
+        .addStringOption((o) => o.setName("clan").setDescription("Welcher Clan, falls mehrere")))
         .addSubcommand((s) => s
         .setName("info")
-        .setDescription("Clan-Beschreibung setzen (Textfenster: Markdown, Zeilenumbrüche)"))
+        .setDescription("Clan-Beschreibung setzen (Textfenster: Markdown, Zeilenumbrüche)")
+        .addStringOption((o) => o.setName("clan").setDescription("Welcher Clan, falls mehrere")))
         .addSubcommand((s) => s
         .setName("plaetze")
         .setDescription("Maximale Plätze setzen (Anzeige z. B. 4/30)")
-        .addIntegerOption((o) => o.setName("anzahl").setDescription("Maximum, z. B. 30").setRequired(true).setMinValue(1).setMaxValue(500)))
+        .addIntegerOption((o) => o.setName("anzahl").setDescription("Maximum, z. B. 30").setRequired(true).setMinValue(1).setMaxValue(500))
+        .addStringOption((o) => o.setName("clan").setDescription("Welcher Clan, falls mehrere")))
         .addSubcommand((s) => s
         .setName("empfaenger")
         .setDescription("Minecraft-Empfänger für Clan-Eintritt (/pay)")
-        .addStringOption((o) => o.setName("name").setDescription("Minecraft-Name").setRequired(true).setMaxLength(32)))
+        .addStringOption((o) => o.setName("name").setDescription("Minecraft-Name").setRequired(true).setMaxLength(32))
+        .addStringOption((o) => o.setName("clan").setDescription("Welcher Clan, falls mehrere")))
         .addSubcommand((s) => s
         .setName("preis-setzen")
         .setDescription("Einen Clan-Preis setzen oder überschreiben")
@@ -256,7 +270,8 @@ export const commands = [
         .addSubcommand((s) => s
         .setName("rolle")
         .setDescription("Rolle, die bei Annahme der Bewerbung vergeben wird")
-        .addRoleOption((o) => o.setName("rolle").setDescription("Clan-Mitgliedsrolle").setRequired(true)))
+        .addRoleOption((o) => o.setName("rolle").setDescription("Clan-Mitgliedsrolle").setRequired(true))
+        .addStringOption((o) => o.setName("clan").setDescription("Welcher Clan, falls mehrere")))
         .addSubcommand((s) => s.setName("liste").setDescription("Angenommene, offene und abgelehnte Bewerbungen"))
         .addSubcommand((s) => s
         .setName("annehmen")
@@ -308,7 +323,8 @@ export function helpText() {
         "**Clan**",
         "`/clan name` · `/clan info` (formatiert) · `/clan plaetze` — Panel-Texte und Maximum (z. B. 30)",
         "`/clan preis-setzen` · `/clan preis-liste` · `/clan empfaenger`",
-        "`/clan panel` · `/clan-panel` — Bewerbungspanel posten (Plätze nur bei Annahme, 1 Person = 1 Platz)",
+        "`/clan hinzufuegen` · `/clan entfernen` — Clans aufs Panel / wieder runter",
+        "`/clan panel` · `/clan-panel` — Bewerbungspanel posten",
         "`/clan rolle` — Rolle, die bei Annahme automatisch vergeben wird",
         "`/clan annehmen` · `/clan ablehnen` · `/clan kick` — Platz frei / belegt",
         "",
