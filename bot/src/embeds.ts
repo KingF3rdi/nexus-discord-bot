@@ -218,8 +218,7 @@ export function spawnerPanelEmbed(
   embed.addFields(
     {
       name: "⚠️ Haftung",
-      value:
-        "Wir haften **nur** für User in **FWM, FWM1, FWM2, FWM3, FWM4, FWM5, FWM6** und **FWM7**.",
+      value: "Wir übernehmen **nur** Verantwortung für **Trusted Trader**.",
       inline: false,
     },
     {

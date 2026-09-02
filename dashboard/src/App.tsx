@@ -522,7 +522,7 @@ function SpawnerChannel() {
         </div>
         <Field
           name="⚠️ Haftung"
-          value="Wir haften nur für User in FWM, FWM1–FWM7."
+          value="Wir übernehmen nur Verantwortung für Trusted Trader."
         />
         <Field
           name="🔔 Hinweis"
