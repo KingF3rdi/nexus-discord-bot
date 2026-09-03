@@ -22,6 +22,7 @@ import {
   productListingEmbed,
   servicePanelEmbed,
   serviceSelect,
+  serviceTicketControls,
   ticketControls,
   ticketPanelEmbed,
   ticketSelect,
@@ -565,7 +566,8 @@ async function cmdService(interaction: ChatInputCommandInteraction) {
     const id = interaction.options.getInteger("id", true);
     const aktiv = interaction.options.getBoolean("aktiv", true);
     db.prepare("UPDATE services SET enabled = ? WHERE id = ? AND guild_id = ?").run(aktiv ? 1 : 0, id, interaction.guildId);
-    await interaction.reply({ content: `Service ${id} ist jetzt ${aktiv ? "aktiv" : "deaktiviert"}.`, flags: 64 });
+    await refreshServicePanels(interaction.client, requireGuildId(interaction.guildId));
+    await interaction.reply({ content: `Service ${id} ist jetzt ${aktiv ? "aktiv" : "deaktiviert"}. Panel aktualisiert.`, flags: 64 });
     return;
   }
   const rows = db.prepare("SELECT * FROM services WHERE guild_id = ?").all(interaction.guildId) as {
@@ -596,6 +598,34 @@ function loadServices(guildId: string | null) {
     max_open: number;
   }[];
   return rows.map((s) => ({ ...s, open: countOpenByService(id, s.id) }));
+}
+
+export async function refreshAllServicePanels(client: Client) {
+  const guilds = db
+    .prepare("SELECT DISTINCT guild_id FROM panels WHERE type = 'service'")
+    .all() as { guild_id: string }[];
+  for (const row of guilds) {
+    await refreshServicePanels(client, row.guild_id);
+  }
+}
+
+async function refreshServicePanels(client: Client, guildId: string) {
+  const rows = db
+    .prepare("SELECT channel_id, message_id FROM panels WHERE guild_id = ? AND type = 'service'")
+    .all(guildId) as { channel_id: string; message_id: string }[];
+  if (!rows.length) return;
+  const services = loadServices(guildId);
+  const config = getGuild(guildId);
+  const payload = {
+    embeds: [servicePanelEmbed(config, services)],
+    components: services.length ? [serviceSelect(services)] : [],
+  };
+  for (const row of rows) {
+    const ch = await client.channels.fetch(row.channel_id).catch(() => null);
+    if (!ch || !ch.isTextBased() || !("messages" in ch)) continue;
+    const msg = await ch.messages.fetch(row.message_id).catch(() => null);
+    await msg?.edit(payload).catch(() => undefined);
+  }
 }
 
 async function cmdServicePanel(interaction: ChatInputCommandInteraction) {
@@ -799,6 +829,10 @@ export async function handleButton(interaction: ButtonInteraction) {
     }
     if (kind === "gw" && action === "join") {
       await joinGiveaway(interaction, Number(rawId));
+      return;
+    }
+    if (kind === "service" && (action === "confirm" || action === "cancel") && rawId) {
+      await handleServiceDecision(interaction, action, Number(rawId));
       return;
     }
     if (kind === "ticket" && action === "close") {
@@ -1089,9 +1123,10 @@ async function openServiceTicket(interaction: StringSelectMenuInteraction, servi
         .setDescription(`Hallo ${member},\n${service.description}\n\nBitte beschreibe, was gebaut oder erledigt werden soll.\n\nKein Preis hinterlegt — das Team setzt ihn mit **Preis festlegen**.`)
         .setFooter({ text: footer(config, "Service-System") }),
     ],
-    components: [ticketControls(ticketId, { hasPay: false })],
+    components: [serviceTicketControls(ticketId)],
   });
   await interaction.reply({ content: `Service-Ticket geöffnet: ${channel}`, flags: 64 });
+  await refreshServicePanels(interaction.client, guildId);
 }
 
 async function openSetPriceModal(interaction: ButtonInteraction, ticketId: number) {
@@ -1170,6 +1205,40 @@ async function applyTicketPrice(
   await interaction.reply({ embeds: [embed] });
 }
 
+async function handleServiceDecision(interaction: ButtonInteraction, action: "confirm" | "cancel", ticketId: number) {
+  const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(ticketId) as
+    | { id: number; guild_id: string; channel_id: string; status: string; user_id: string; type: string; total: number | null; seller_id: string | null; product_id: number | null; product_name: string | null; quantity: number; unit_price: number | null }
+    | undefined;
+  if (!ticket || ticket.status !== "open") throw new Error("Ticket ist bereits geschlossen.");
+  const config = getGuild(ticket.guild_id);
+  if (ticket.user_id !== interaction.user.id && !isStaff(interaction.member, config, ticket.type)) {
+    throw new Error("Nur das Team oder der Ticket-Ersteller kann bestätigen oder abbrechen.");
+  }
+
+  if (action === "confirm") {
+    db.prepare("UPDATE tickets SET status = 'closed' WHERE id = ?").run(ticketId);
+    const asked = await sendVouchDm(interaction.client, ticket);
+    const extra =
+      asked === "sent" ? " Bewertung per DM gesendet."
+      : asked === "failed" ? " DM nicht möglich." : "";
+    await interaction.reply({
+      embeds: [warningEmbed(`✅ Service-Ticket bestätigt und abgeschlossen.${extra}`, COLORS.green)],
+    });
+    setTimeout(() => {
+      interaction.channel?.delete("Service bestätigt").catch(() => undefined);
+    }, 5000);
+  } else {
+    db.prepare("UPDATE tickets SET status = 'closed' WHERE id = ?").run(ticketId);
+    await interaction.reply({
+      embeds: [warningEmbed("❌ Service-Ticket abgebrochen. Kanal wird in 5 Sekunden gelöscht.", COLORS.red)],
+    });
+    setTimeout(() => {
+      interaction.channel?.delete("Service abgebrochen").catch(() => undefined);
+    }, 5000);
+  }
+  await refreshServicePanels(interaction.client, ticket.guild_id);
+}
+
 async function closeTicket(
   interaction: ChatInputCommandInteraction | ButtonInteraction,
   ticketId: number,
@@ -1206,6 +1275,9 @@ async function closeTicket(
   await interaction.reply({
     embeds: [warningEmbed(`Ticket wird in 5 Sekunden geschlossen.${extra}`, COLORS.yellow)],
   });
+  if (ticket.type === "service") {
+    await refreshServicePanels(interaction.client, ticket.guild_id);
+  }
   setTimeout(() => {
     interaction.channel?.delete("Ticket geschlossen").catch(() => undefined);
   }, 5000);

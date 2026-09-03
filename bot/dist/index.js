@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Events } from "discord.js";
 import { client } from "./client.js";
 import { commands } from "./commands.js";
-import { handleButton, handleChatCommand, handleModal, handleSelect, handleUserSelect, tickGiveaways } from "./handlers.js";
+import { handleButton, handleChatCommand, handleModal, handleSelect, handleUserSelect, refreshAllServicePanels, tickGiveaways } from "./handlers.js";
 import { refreshAllSpawnerPanels } from "./spawners.js";
 import { refreshAllClanPanels } from "./clan.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -80,6 +80,7 @@ client.once(Events.ClientReady, async (ready) => {
     await registerCommands();
     await refreshAllSpawnerPanels(client).catch((err) => console.error("Spawner-Panels konnten nicht aktualisiert werden:", err));
     await refreshAllClanPanels(client).catch((err) => console.error("Clan-Panels konnten nicht aktualisiert werden:", err));
+    await refreshAllServicePanels(client).catch((err) => console.error("Service-Panels konnten nicht aktualisiert werden:", err));
     setInterval(() => tickGiveaways(client), 15_000);
 });
 client.on(Events.GuildCreate, async (guild) => {
@@ -127,7 +128,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     }
 });
-console.log("[Nexus] 1.0.15 start · Gateway-Intents: Guilds only");
+console.log("[Nexus] 1.0.16 start · Gateway-Intents: Guilds only");
 client.login(token).catch((err) => {
     if (isDisallowedIntents(err))
         printIntentsHelp();

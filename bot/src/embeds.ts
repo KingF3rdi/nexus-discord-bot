@@ -144,6 +144,27 @@ export function paymentEmbed(opts: {
     .setTimestamp();
 }
 
+export function serviceTicketControls(ticketId: number) {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setStyle(ButtonStyle.Primary).setLabel("Übernehmen"),
+    new ButtonBuilder()
+      .setCustomId(`ticket:setprice:${ticketId}`)
+      .setStyle(ButtonStyle.Success)
+      .setEmoji("💵")
+      .setLabel("Preis festlegen"),
+    new ButtonBuilder()
+      .setCustomId(`service:confirm:${ticketId}`)
+      .setStyle(ButtonStyle.Success)
+      .setEmoji("✅")
+      .setLabel("Bestätigen"),
+    new ButtonBuilder()
+      .setCustomId(`service:cancel:${ticketId}`)
+      .setStyle(ButtonStyle.Danger)
+      .setEmoji("❌")
+      .setLabel("Abbrechen"),
+  );
+}
+
 export function ticketControls(ticketId: number, opts?: { hasPay?: boolean }) {
   const hasPay = opts?.hasPay ?? true;
   const payOrPrice = hasPay

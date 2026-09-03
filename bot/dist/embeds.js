@@ -69,6 +69,21 @@ export function paymentEmbed(opts) {
         .setFooter({ text: footer(opts.config, opts.sku ? `Bestellung ${opts.sku}` : "Shop") })
         .setTimestamp();
 }
+export function serviceTicketControls(ticketId) {
+    return new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`ticket:claim:${ticketId}`).setStyle(ButtonStyle.Primary).setLabel("Übernehmen"), new ButtonBuilder()
+        .setCustomId(`ticket:setprice:${ticketId}`)
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("💵")
+        .setLabel("Preis festlegen"), new ButtonBuilder()
+        .setCustomId(`service:confirm:${ticketId}`)
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("✅")
+        .setLabel("Bestätigen"), new ButtonBuilder()
+        .setCustomId(`service:cancel:${ticketId}`)
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji("❌")
+        .setLabel("Abbrechen"));
+}
 export function ticketControls(ticketId, opts) {
     const hasPay = opts?.hasPay ?? true;
     const payOrPrice = hasPay
